@@ -22,7 +22,7 @@
   .tab.active { color: #4361ee; border-bottom-color: #4361ee; font-weight: 700; }
 
   /* Content */
-  .content { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+  .content { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
 
   /* Stats Cards */
   .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
@@ -113,6 +113,25 @@
   .prod-search { margin-bottom: 10px; }
   .empty { text-align: center; color: #adb5bd; padding: 32px; font-size: 14px; }
 
+  /* 고객 계산기 */
+  .cart-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f1f3f5; font-size:13px; }
+  .cart-item:last-child { border-bottom:none; }
+  .cart-item-name { flex:1; font-weight:500; color:#1a1a2e; }
+  .cart-item-price { color:#4361ee; font-weight:700; min-width:70px; text-align:right; }
+  .cart-item-del { background:none;border:none;color:#dee2e6;cursor:pointer;font-size:15px;padding:2px 4px;transition:color 0.15s; }
+  .cart-item-del:hover { color:#fa5252; }
+
+  /* 입력탭 레이아웃 - 항상 2단 (태블릿/PC) */
+  .content-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  /* 모바일은 1단 */
+  @media (max-width:700px) {
+    .content-grid { grid-template-columns:1fr; }
+  }
+
+  /* 과거입력 탭 */
+  .bulk-row { display:grid; grid-template-columns:1fr 80px 110px 36px; gap:8px; margin-bottom:6px; align-items:center; }
+  .bulk-row input { padding:8px 10px; font-size:14px; }
+
   /* Responsive */
   @media (max-width: 600px) {
     .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -132,6 +151,7 @@
 
 <div class="tabs">
   <div class="tab active" onclick="showTab('input')">📝 매출 입력</div>
+  <div class="tab" onclick="showTab('bulk')">📥 과거 입력</div>
   <div class="tab" onclick="showTab('history')">📋 내역</div>
   <div class="tab" onclick="showTab('chart')">📊 추이</div>
   <div class="tab" onclick="showTab('products')">🏷️ 제품 관리</div>
@@ -215,6 +235,44 @@
   <div id="todaySalesList"></div>
 </div>
 
+
+<!-- 과거 입력 -->
+<div id="tab-bulk" class="content" style="display:none">
+  <div class="form-card">
+    <h3>과거 매출 일괄 입력</h3>
+    <div class="form-row-full">
+      <div>
+        <label>날짜</label>
+        <input type="date" id="bulkDate">
+      </div>
+      <div>
+        <label>결제 방법</label>
+        <div class="pay-btns">
+          <button class="pay-btn active" id="bulkPay카드" onclick="selectBulkPay('카드')">카드</button>
+          <button class="pay-btn" id="bulkPay현금" onclick="selectBulkPay('현금')">현금</button>
+          <button class="pay-btn" id="bulkPay이체" onclick="selectBulkPay('이체')">이체</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn-primary" onclick="addBulkSale()" style="margin-top:0">+ 항목 추가</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 80px 110px 36px;gap:8px;margin-top:12px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:700;color:#868e96">품목명</div>
+      <div style="font-size:12px;font-weight:700;color:#868e96">수량</div>
+      <div style="font-size:12px;font-weight:700;color:#868e96">단가(원)</div>
+      <div></div>
+    </div>
+    <div id="bulkRows"></div>
+    <div style="background:#f1f3ff;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin:12px 0">
+      <span style="font-size:13px;color:#4361ee;font-weight:600">합계</span>
+      <span style="font-size:20px;font-weight:800;color:#4361ee" id="bulkTotal">₩0</span>
+    </div>
+    <button class="btn-primary" onclick="commitBulk()" style="background:#2f9e44">✓ 일괄 등록</button>
+  </div>
+  <div id="bulkHistory" style="margin-top:8px"></div>
+</div>
+
 <!-- 내역 -->
 <div id="tab-history" class="content" style="display:none">
   <div class="filter-row">
@@ -260,7 +318,20 @@
 // ─── 기본 데이터 ───
 const INITIAL_PRODUCTS = [{"name": "APC에코백(가죽)", "price": 220000}, {"name": "가디건", "price": 30000}, {"name": "가방(접이식 쌕)", "price": 39000}, {"name": "가방(털자수)", "price": 108000}, {"name": "가위", "price": 8000}, {"name": "강아지 마그네틱", "price": 15000}, {"name": "강아지 자석", "price": 15000}, {"name": "강아지 키링", "price": 7500}, {"name": "거울 산리오", "price": 30000}, {"name": "거울 소형", "price": 15000}, {"name": "검은색 자수티", "price": 49000}, {"name": "검정토트가방", "price": 27000}, {"name": "고무머리끈", "price": 2000}, {"name": "고양이 다이어리", "price": 15000}, {"name": "고양이 로봇", "price": 120000}, {"name": "고양이 로봇", "price": 103500}, {"name": "고양이 매트", "price": 22000}, {"name": "고양이 머그컵", "price": 20000}, {"name": "고양이 메모지", "price": 5000}, {"name": "고양이 무드등", "price": 38000}, {"name": "고양이 손수건", "price": 12000}, {"name": "고양이 스탬프", "price": 19000}, {"name": "고양이 온열파우치", "price": 39000}, {"name": "고양이 자석걸이", "price": 13000}, {"name": "고양이 조명", "price": 25000}, {"name": "고양이 주걱", "price": 3000}, {"name": "고양이 주방수건(소)", "price": 15000}, {"name": "고양이 주방타올", "price": 25000}, {"name": "고양이 지퍼백", "price": 8000}, {"name": "고양이 키친타올", "price": 25000}, {"name": "고양이 타올", "price": 25000}, {"name": "고양이가위", "price": 6500}, {"name": "고양이다꾸도장", "price": 3500}, {"name": "고양이발매트", "price": 22000}, {"name": "고양이봉투", "price": 4000}, {"name": "고양이카드지갑", "price": 13000}, {"name": "고양이파우치(할인박스)", "price": 9000}, {"name": "곰돌이 에코백", "price": 23400}, {"name": "곰돌이 장바구니", "price": 25000}, {"name": "곰돌이 키링", "price": 15000}, {"name": "곰돌이 키링 에코백", "price": 26000}, {"name": "공책", "price": 6000}, {"name": "과자(빨간색 매운맛)", "price": 4000}, {"name": "과자류(젤리2봉,초코25개)", "price": 9000}, {"name": "구름이 키링", "price": 18000}, {"name": "귀걸이(1)", "price": 12000}, {"name": "귀걸이(2)", "price": 15000}, {"name": "귀걸이(Pierce)", "price": 10000}, {"name": "긴자와플", "price": 8000}, {"name": "긴팔후드티", "price": 65000}, {"name": "나이키 에어 (보라색)", "price": 99000}, {"name": "냄비받침", "price": 10000}, {"name": "냄비받침(대)", "price": 10000}, {"name": "냄비받침대(소)", "price": 5000}, {"name": "냄비장갑", "price": 18000}, {"name": "냄비장갑(갈색)", "price": 18000}, {"name": "네코양말", "price": 7000}, {"name": "노란비틀자동차", "price": 20000}, {"name": "노트", "price": 5000}, {"name": "누워자는 고양이 인형", "price": 22000}, {"name": "눈가린고양이 동전지갑 키링", "price": 14000}, {"name": "뉴발란스 티셔츠", "price": 35000}, {"name": "뉴진스 인형", "price": 42000}, {"name": "다꾸 도장", "price": 3500}, {"name": "다꾸도장(핑크)", "price": 2500}, {"name": "다꾸롤스티커", "price": 3500}, {"name": "다꾸사인펜", "price": 5000}, {"name": "다꾸스탬프(고양이-테무)", "price": 3500}, {"name": "다꾸스탬프(롤링)", "price": 19000}, {"name": "다꾸스탬프(사각미니)", "price": 2500}, {"name": "다꾸스티커", "price": 4000}, {"name": "다꾸지우개(1)", "price": 1500}, {"name": "다꾸지우개(2)", "price": 3000}, {"name": "다꾸크레용", "price": 8500}, {"name": "다꾸펜세트", "price": 3000}, {"name": "다이어리", "price": 15000}, {"name": "다쿠스티커", "price": 5000}, {"name": "닥스훈트 키링", "price": 9000}, {"name": "단우산", "price": 18000}, {"name": "데님 가방", "price": 85000}, {"name": "데님 디자이너가방", "price": 80000}, {"name": "데님집게", "price": 8000}, {"name": "도시락통", "price": 18000}, {"name": "도톰한 손수건", "price": 12000}, {"name": "동전지갑", "price": 11000}, {"name": "뒤집게", "price": 3500}, {"name": "딘앤델루카 앞치마", "price": 49000}, {"name": "딘앤델루카 에코백", "price": 34000}, {"name": "딘앤델르카 에코백", "price": 34000}, {"name": "딘앤델르쿠 보냉백(대)", "price": 32000}, {"name": "딱정벌레 자석가위", "price": 8000}, {"name": "딸기샌드", "price": 4000}, {"name": "라부부", "price": 42000}, {"name": "라부부(붉은색)", "price": 40000}, {"name": "라부부(파란색)", "price": 42000}, {"name": "랜덤뽑기", "price": 3500}, {"name": "랜덤스탬프", "price": 2500}, {"name": "랜덤캔디", "price": 3500}, {"name": "랜덤캔디키링", "price": 3500}, {"name": "랜덤키링", "price": 3500}, {"name": "레서판다 배낭", "price": 15000}, {"name": "레이스 머리핀", "price": 20000}, {"name": "레트로카(폭스바겐 버스)", "price": 27000}, {"name": "로봇고양이", "price": 110000}, {"name": "로지로사", "price": 8500}, {"name": "롤스티커", "price": 5000}, {"name": "리본데님가방", "price": 20000}, {"name": "마그넷(가전)", "price": 15000}, {"name": "마스크팩(엑소좀)", "price": 12000}, {"name": "마이멜로디 다이어리", "price": 16000}, {"name": "마이멜로디 스티커", "price": 4000}, {"name": "마이멜로디 키링(대)", "price": 9500}, {"name": "마이멜로디 할인키링(국산)", "price": 5400}, {"name": "마이클코어스 샌들", "price": 80000}, {"name": "맥주안주접시", "price": 7000}, {"name": "맨투맨(강아지-세일)", "price": 55000}, {"name": "머그컵", "price": 25000}, {"name": "머그컵(베이커리고양이)", "price": 25000}, {"name": "머리끈(pin ball)", "price": 6500}, {"name": "머리삔", "price": 8000}, {"name": "머리집게", "price": 8000}, {"name": "먼지인형(세리아)", "price": 3000}, {"name": "먼지키링", "price": 3000}, {"name": "메모지", "price": 3500}, {"name": "메모지봉투", "price": 5000}, {"name": "멜로디카드", "price": 8000}, {"name": "명품장갑", "price": 320000}, {"name": "모시원피스", "price": 110000}, {"name": "모자(데님)", "price": 36000}, {"name": "목도리", "price": 38000}, {"name": "목도리(핑크-블루)", "price": 38000}, {"name": "몬치치", "price": 38000}, {"name": "몬치치 갈색 여자키링", "price": 35000}, {"name": "몬치치 메모지", "price": 5000}, {"name": "몬치치 베이비1", "price": 35000}, {"name": "몬치치 베이비2", "price": 45000}, {"name": "몬치치 인형", "price": 38000}, {"name": "몬치치 인형(여아)", "price": 45000}, {"name": "몬치치 초록이", "price": 38000}, {"name": "몬치치 토끼파우치", "price": 16000}, {"name": "몬치치 톰과제리", "price": 39000}, {"name": "몬치치 톰과제리(브라운)", "price": 39000}, {"name": "몬치치 파우치", "price": 18000}, {"name": "몬치치 핑크", "price": 38000}, {"name": "몬치치(베비치치모자)", "price": 40000}, {"name": "무드등(고양이 수면)", "price": 20000}, {"name": "무드등(스탠트소형)", "price": 10000}, {"name": "무드등(오락고양이)", "price": 35000}, {"name": "무민생일카드", "price": 8000}, {"name": "무민컵+나무상자", "price": 20000}, {"name": "물컵(흰색)", "price": 9000}, {"name": "미니손가방", "price": 27000}, {"name": "미니손장갑키링", "price": 12000}, {"name": "미니스태플러", "price": 4000}, {"name": "미니카(서핑)", "price": 15000}, {"name": "미니카(핑크)", "price": 15000}, {"name": "미니파우치", "price": 21000}, {"name": "미니파우치(세일)", "price": 9000}, {"name": "미니파우치가방", "price": 27000}, {"name": "미피가방", "price": 58000}, {"name": "바바라샌들", "price": 85000}, {"name": "바인더클립(산리오)", "price": 9000}, {"name": "바지", "price": 64000}, {"name": "바퀴줄자", "price": 7000}, {"name": "반지1", "price": 20000}, {"name": "반지2", "price": 32000}, {"name": "발매트", "price": 22000}, {"name": "발매트 (클래식)", "price": 32000}, {"name": "발매트 (토토로고양이)", "price": 15000}, {"name": "밴드에이드", "price": 4000}, {"name": "버터나이프", "price": 11000}, {"name": "버터쿠키", "price": 4000}, {"name": "벌룬치마", "price": 85000}, {"name": "베어브릭", "price": 10000}, {"name": "베이지백팩", "price": 25000}, {"name": "벽걸이 자석(고양이)", "price": 12000}, {"name": "벽걸이 자석(푸들)", "price": 12000}, {"name": "병아리 키링", "price": 3000}, {"name": "보석함(알미늄캔)", "price": 5000}, {"name": "보온양말(밀키)", "price": 15000}, {"name": "볼앤체인(대)", "price": 89000}, {"name": "볼앤체인(중)", "price": 79000}, {"name": "볼펜(액션_디즈니)", "price": 15000}, {"name": "볼펜(액션_산리오)", "price": 12000}, {"name": "볼펜(액션_스누피)", "price": 13000}, {"name": "볼펜(액션_토끼)", "price": 12000}, {"name": "볼펜_(액션_미피)", "price": 12000}, {"name": "볼펜_MOMA", "price": 12000}, {"name": "볼펜_몬치치", "price": 7000}, {"name": "볼펜_산리오", "price": 8000}, {"name": "볼펜_치이카와", "price": 7000}, {"name": "볼펜_캐릭터(키티 등)", "price": 8000}, {"name": "볼펜_키티+펜던트", "price": 8000}, {"name": "볼펜3", "price": 9000}, {"name": "볼펜4", "price": 10000}, {"name": "블랙자켓", "price": 250000}, {"name": "블랙키티", "price": 30000}, {"name": "블루투스 이어폰(키티)", "price": 58000}, {"name": "비비안손수건(도톰한)", "price": 25000}, {"name": "비비안양말 중목", "price": 30000}, {"name": "비비안웨스트우드 긴양말", "price": 32000}, {"name": "비비안웨스트우드 손수건", "price": 25000}, {"name": "비비안웨스트우스 스카프", "price": 25000}, {"name": "비비안장갑(그레인색)", "price": 129000}, {"name": "비비안장갑교환", "price": 47000}, {"name": "빈백토끼키링", "price": 15000}, {"name": "빨간망또 고양이 키링", "price": 25000}, {"name": "빵도로보 메모지", "price": 6000}, {"name": "빵도로보 벽걸이 시계", "price": 30000}, {"name": "빵도로보키링(세일품)", "price": 7000}, {"name": "사기접시", "price": 15000}, {"name": "산리오 다꾸스티커(할인)", "price": 3000}, {"name": "산리오 다이어리", "price": 16000}, {"name": "산리오 머리빗", "price": 8000}, {"name": "산리오 머리빗", "price": 15000}, {"name": "산리오 메모지", "price": 6000}, {"name": "산리오 시계", "price": 20000}, {"name": "산리오 연필", "price": 15000}, {"name": "산리오 이어폰", "price": 59000}, {"name": "산리오 인형", "price": 10000}, {"name": "산리오 자석키링", "price": 24000}, {"name": "산리오 저금통", "price": 22000}, {"name": "산리오 주방수건", "price": 11000}, {"name": "산리오 지퍼백", "price": 1000}, {"name": "산리오 챕스틱", "price": 5500}, {"name": "산리오 커플키링", "price": 24000}, {"name": "산리오 클립 포차코", "price": 9000}, {"name": "산리오 키링1", "price": 8500}, {"name": "산리오 키링2", "price": 10000}, {"name": "산리오 파우치", "price": 18000}, {"name": "생일카드1", "price": 5500}, {"name": "생일카드2", "price": 7000}, {"name": "샤프", "price": 9000}, {"name": "샤프_몬치치", "price": 9000}, {"name": "샤프_산리오", "price": 9000}, {"name": "샤프_스낵팬던트", "price": 9000}, {"name": "샤프_연필모양", "price": 12000}, {"name": "샤프_치이카와", "price": 8000}, {"name": "샤프_피크민", "price": 10000}, {"name": "샴푸통", "price": 25000}, {"name": "선풍기", "price": 20000}, {"name": "선풍기(헬로키티)", "price": 20000}, {"name": "세라믹 컵받침", "price": 5000}, {"name": "세리아 키링", "price": 4000}, {"name": "세리아 피규어(대)_삼각봉지", "price": 5000}, {"name": "세리아 피규어(소)_삼각봉지", "price": 3000}, {"name": "세일 골프티", "price": 20000}, {"name": "세일 장바구니", "price": 14000}, {"name": "세일박스(산리오인형)2개", "price": 6000}, {"name": "손가락장갑(모)", "price": 43000}, {"name": "손거울", "price": 10000}, {"name": "손수건(Japan)", "price": 8000}, {"name": "손수건1", "price": 7000}, {"name": "손수건2", "price": 9000}, {"name": "손수건3", "price": 12000}, {"name": "손장갑수세미", "price": 10000}, {"name": "손지갑", "price": 16000}, {"name": "손톱깍이", "price": 9000}, {"name": "손풍기(쿠로미C포트)", "price": 20000}, {"name": "숄더가방", "price": 30000}, {"name": "수면양말", "price": 15000}, {"name": "수세미_세트", "price": 10000}, {"name": "수세미_아사히카제히", "price": 3000}, {"name": "수세미_일반", "price": 2500}, {"name": "수저받침대", "price": 3000}, {"name": "수저세트(핑크색)", "price": 9000}, {"name": "수줍은고양이 키링", "price": 14000}, {"name": "순면행주 묶음", "price": 7000}, {"name": "스누피 스푼", "price": 16000}, {"name": "스누피 스푼세트", "price": 16000}, {"name": "스누피 파우치", "price": 15000}, {"name": "스카프(비비안)", "price": 32000}, {"name": "스커트", "price": 98000}, {"name": "스쿨룩 키티(세일)", "price": 6500}, {"name": "스타킹", "price": 13000}, {"name": "스탠드거울", "price": 15000}, {"name": "스텐딩 키티", "price": 29000}, {"name": "스텔라맥카트니", "price": 94000}, {"name": "스티커", "price": 5000}, {"name": "스펀지", "price": 8500}, {"name": "스프링 공책(소형)", "price": 7000}, {"name": "시나모롤 손수건", "price": 7000}, {"name": "시나모롤 손톱깍이", "price": 18000}, {"name": "시나모롤 스티커", "price": 4000}, {"name": "시나모롤 양치컵", "price": 5000}, {"name": "시나모롤 조명", "price": 9000}, {"name": "시나모롤 커플자석", "price": 21000}, {"name": "시나모롤 포켓빗", "price": 12000}, {"name": "시나모롤 할인키링(국산)", "price": 6000}, {"name": "시마모롤 키링", "price": 12000}, {"name": "시마모롤 키링 날개버전", "price": 23000}, {"name": "식탁러너", "price": 9000}, {"name": "신발세척스폰지", "price": 6000}, {"name": "심술고양이 컵받침(짜임)", "price": 5000}, {"name": "쌀팩", "price": 10000}, {"name": "아디다스 가방", "price": 35000}, {"name": "아디다스 벨트운동화", "price": 160000}, {"name": "아디다스 신발", "price": 160000}, {"name": "아디다스콜라보 캡", "price": 25000}, {"name": "아디다스-쿠로미 크로스백", "price": 35000}, {"name": "아사히카제이 수세미", "price": 3000}, {"name": "아우터", "price": 120000}, {"name": "아우터숏", "price": 80000}, {"name": "아이팟 케이스(시나모롤)", "price": 35000}, {"name": "아이팟 케이스(치이카와)", "price": 35000}, {"name": "아이팟케이스(항교동)", "price": 30000}, {"name": "안경가위 키링", "price": 12000}, {"name": "앉은 일본고양이", "price": 35000}, {"name": "알미늄 원형접시", "price": 6000}, {"name": "알프레드 키링", "price": 12000}, {"name": "양산", "price": 15000}, {"name": "양초_스마일1", "price": 2500}, {"name": "양초_스마일2", "price": 1500}, {"name": "어그슬리퍼", "price": 46800}, {"name": "여권지갑", "price": 22000}, {"name": "연필꽂이", "price": 15000}, {"name": "연필꽂이소품", "price": 3000}, {"name": "열쇄고리 장바구니", "price": 10000}, {"name": "오나먼트", "price": 15400}, {"name": "오니츠카 검정", "price": 190000}, {"name": "오니츠카 맥시코66(245)", "price": 200000}, {"name": "오니츠카타이거", "price": 190000}, {"name": "오르골(산타)", "price": 45000}, {"name": "오르골(전화부스)", "price": 38000}, {"name": "오르골1", "price": 29000}, {"name": "오르골2", "price": 48000}, {"name": "오르골3", "price": 65000}, {"name": "오리집게", "price": 3000}, {"name": "옷(상/하의+청자켓)", "price": 250000}, {"name": "와사비 키링", "price": 13000}, {"name": "우유유리컵", "price": 12000}, {"name": "운동화", "price": 250000}, {"name": "워싱티셔츠", "price": 39000}, {"name": "유리컵", "price": 17000}, {"name": "의자 다리커버(대)", "price": 15000}, {"name": "의자 다리커버(소)", "price": 14000}, {"name": "일러스트 파우치", "price": 18000}, {"name": "일본손수건", "price": 7000}, {"name": "자는고양이", "price": 19000}, {"name": "자동차 모형", "price": 15000}, {"name": "자석_세트(박스)", "price": 15000}, {"name": "자석가위(소)", "price": 6000}, {"name": "잠자는 고양이(대)", "price": 19000}, {"name": "잠자는 고양이(소)", "price": 20000}, {"name": "잠자는 토토로인형", "price": 28000}, {"name": "장가방", "price": 15000}, {"name": "장바구니 키링(데님)", "price": 10000}, {"name": "장바구니(데님)", "price": 10000}, {"name": "장바구니(페코)", "price": 10000}, {"name": "장우산(검정천)", "price": 25000}, {"name": "장우산(비닐)", "price": 16000}, {"name": "장우산(천)", "price": 18000}, {"name": "쟁반", "price": 7000}, {"name": "쟁반(대)", "price": 19000}, {"name": "점프수트", "price": 109000}, {"name": "접시1", "price": 5000}, {"name": "접시2", "price": 7000}, {"name": "조던후드", "price": 59000}, {"name": "조명(고양이)", "price": 25000}, {"name": "조명(잠자는 오락고양이)", "price": 25000}, {"name": "종지(대)", "price": 5000}, {"name": "종지(소)", "price": 3000}, {"name": "주방수건(강아지자수)", "price": 12000}, {"name": "주방수건(고양이)", "price": 25000}, {"name": "주방수건(키티)", "price": 11000}, {"name": "지갑(세일품)", "price": 5000}, {"name": "지브리 장화 피규어", "price": 50000}, {"name": "지우개", "price": 3500}, {"name": "짱구 네임텍", "price": 5000}, {"name": "쪽가위", "price": 5000}, {"name": "찻잔(대)", "price": 20000}, {"name": "책상모형", "price": 3000}, {"name": "챙모자1", "price": 25000}, {"name": "챙모자2", "price": 28000}, {"name": "챙모자3", "price": 30000}, {"name": "천가방(데님/딸기모양)", "price": 20000}, {"name": "청바지1", "price": 79000}, {"name": "청바지2", "price": 89000}, {"name": "청소솔", "price": 4000}, {"name": "충전케이블", "price": 9000}, {"name": "츄츄캣 키링", "price": 25000}, {"name": "츄츄캣키링", "price": 20000}, {"name": "치마", "price": 99000}, {"name": "치실키링", "price": 5000}, {"name": "치이카와 방울", "price": 10000}, {"name": "치이카와 에어팟케이스", "price": 35000}, {"name": "치이카와 지우개", "price": 3500}, {"name": "카드손지갑(브라운)", "price": 8000}, {"name": "카드지갑(올리브색)", "price": 12000}, {"name": "카르비 플라스틱 키링", "price": 7000}, {"name": "카야 행주", "price": 7000}, {"name": "캐피탈자켓", "price": 280000}, {"name": "캘린더", "price": 20000}, {"name": "커플자석(산리오)", "price": 22000}, {"name": "커플자석(산리오)-포카차", "price": 20000}, {"name": "커플자석키링1", "price": 16000}, {"name": "커플자석키링2-산리오", "price": 24000}, {"name": "커피잔(+박스)", "price": 25000}, {"name": "쿠로미 열쇄고리", "price": 10000}, {"name": "쿠로미 키링", "price": 14000}, {"name": "쿠로미클립", "price": 9000}, {"name": "쿠키인형(크리스마스)", "price": 7000}, {"name": "큐빅반지", "price": 32000}, {"name": "큐빅팔찌", "price": 32000}, {"name": "크레용(3개)", "price": 12000}, {"name": "크레용지우게", "price": 1500}, {"name": "크리스마스 스프레드(빨간색)", "price": 12000}, {"name": "크리스마스 스프레드(흰색)", "price": 12000}, {"name": "크리스마스 오나먼트", "price": 10000}, {"name": "크리스마스 오나먼트(산타)", "price": 7000}, {"name": "크리스마스 오나먼트(우체통/대)", "price": 10000}, {"name": "크리스마스 오나먼트(우체통/소", "price": 7000}, {"name": "크리스마스 오나먼트(쿠키)", "price": 7000}, {"name": "크리스마스 인형(곰돌이)", "price": 4500}, {"name": "크리스마스 인형(눈사람)", "price": 4500}, {"name": "크리스마스 하우스(소형)", "price": 16000}, {"name": "크리스마스오르골(원형)", "price": 35000}, {"name": "크리스마스카드", "price": 5000}, {"name": "크리스마스캔", "price": 6000}, {"name": "크리스마스트리피겨", "price": 13000}, {"name": "클리어파일", "price": 4000}, {"name": "클립", "price": 5000}, {"name": "키링(닥스훈트)", "price": 9000}, {"name": "키보드 키링", "price": 10000}, {"name": "키티 메모지", "price": 6000}, {"name": "키티 모드등", "price": 9500}, {"name": "키티 미니 백팩", "price": 30000}, {"name": "키티 미니파우치(투명상자)", "price": 16000}, {"name": "키티 반짝이 키링", "price": 15000}, {"name": "키티 빤짝이 키링", "price": 15000}, {"name": "키티 손수건", "price": 8500}, {"name": "키티 키링", "price": 16000}, {"name": "키티 투명케이스", "price": 16000}, {"name": "키티가방", "price": 25000}, {"name": "키티가방(검정)", "price": 32000}, {"name": "키티거울", "price": 18000}, {"name": "키티네임텍", "price": 22000}, {"name": "키티머리삔", "price": 8000}, {"name": "키티머리삔(4개짜리)", "price": 8000}, {"name": "키티-몬치치 메모지", "price": 6000}, {"name": "키티백팩", "price": 45000}, {"name": "키티블럭(동전지갑)", "price": 16000}, {"name": "키티빗1", "price": 7000}, {"name": "키티빗2", "price": 65000}, {"name": "키티선풍기", "price": 20000}, {"name": "키티손거울", "price": 20000}, {"name": "키티스푼세트", "price": 10000}, {"name": "키티인형1", "price": 6500}, {"name": "키티인형2", "price": 10000}, {"name": "키티장바구니", "price": 12000}, {"name": "키티집게핀", "price": 7000}, {"name": "키티컵", "price": 4000}, {"name": "키티키링(대형)", "price": 9500}, {"name": "키티키링(천)", "price": 6000}, {"name": "키티키링1", "price": 6000}, {"name": "키티키링2", "price": 13000}, {"name": "키티키링3", "price": 16000}, {"name": "키티키링4", "price": 39000}, {"name": "키티포크", "price": 4000}, {"name": "키티피규어", "price": 5000}, {"name": "키티핀", "price": 8000}, {"name": "태닝키티 키링", "price": 15000}, {"name": "태닝키티거울", "price": 22000}, {"name": "태닝키티손가방(노란색)", "price": 29000}, {"name": "털복숭이 키링", "price": 14000}, {"name": "테이블 스프레드", "price": 12000}, {"name": "토끼가위", "price": 6000}, {"name": "토끼머리삔", "price": 9000}, {"name": "토끼접시", "price": 6000}, {"name": "토토로 고양이", "price": 28000}, {"name": "토토로 도시락 파우치", "price": 22000}, {"name": "토토로 메모꽂이", "price": 12000}, {"name": "토토로 목베게", "price": 39000}, {"name": "토토로 발매트", "price": 45000}, {"name": "토토로 손가락인형", "price": 7000}, {"name": "토토로 손수건", "price": 18000}, {"name": "토토로 식탁매트", "price": 15000}, {"name": "토토로 싱크대수건", "price": 25000}, {"name": "토토로 양말", "price": 10000}, {"name": "토토로 오뚜기(마녀키키)", "price": 25000}, {"name": "토토로 인형", "price": 25000}, {"name": "토토로 주방수건", "price": 12000}, {"name": "토토로 주방타올", "price": 25000}, {"name": "토토로 크로스백", "price": 28000}, {"name": "토토로 키링(대)", "price": 14000}, {"name": "토토로 키링(소)", "price": 6000}, {"name": "토토로 키링(중)", "price": 8000}, {"name": "토토로 키친타올", "price": 12000}, {"name": "토토로 파우치", "price": 25000}, {"name": "토토로(중) 키링", "price": 8000}, {"name": "토토로발매트", "price": 30000}, {"name": "토토로보냉백", "price": 22000}, {"name": "토토로손수건", "price": 18000}, {"name": "토토로손타올", "price": 25000}, {"name": "토토로인형(블루)", "price": 26000}, {"name": "토토로주방매트", "price": 15000}, {"name": "토트백", "price": 27000}, {"name": "토트백(구획/라임색)", "price": 35000}, {"name": "토트백(반원형/짜임)", "price": 22000}, {"name": "톰과제리 커플키링", "price": 16000}, {"name": "트리오너먼트인형", "price": 4500}, {"name": "틴케이스", "price": 9000}, {"name": "파우치(세일1)", "price": 8000}, {"name": "파우치(세일2)", "price": 9000}, {"name": "파우치1", "price": 12000}, {"name": "파우치2", "price": 21000}, {"name": "파일폴더", "price": 4000}, {"name": "팸코가위", "price": 15000}, {"name": "팽구키링", "price": 20000}, {"name": "퍼프", "price": 7000}, {"name": "펨코가위", "price": 15000}, {"name": "편지봉투", "price": 4000}, {"name": "포스터", "price": 5000}, {"name": "포스트잇", "price": 5000}, {"name": "포차카 자석인형", "price": 29000}, {"name": "포차코 메모지", "price": 6000}, {"name": "포차코 이어폰", "price": 58000}, {"name": "포차코 키링", "price": 13000}, {"name": "포카차 큰 인형키링", "price": 9500}, {"name": "포켓빗", "price": 12000}, {"name": "폴라니트", "price": 78000}, {"name": "폴로 꽈배기 반팔티", "price": 110000}, {"name": "폴로손수건", "price": 25000}, {"name": "폴로양말(곤색)", "price": 18000}, {"name": "폴로양말(회색)", "price": 23000}, {"name": "폴로티(노란색 자수)", "price": 59000}, {"name": "폼폼푸린 손수건", "price": 7000}, {"name": "폼푸린 세일인형", "price": 6000}, {"name": "폼푸린 자석키링", "price": 24000}, {"name": "푸우충전기", "price": 9000}, {"name": "풍선초", "price": 3500}, {"name": "프리즘 매트2 토트(보라색)", "price": 650000}, {"name": "플라스틱 쟁반", "price": 7000}, {"name": "플리츠스카프", "price": 200000}, {"name": "피리캔디", "price": 2000}, {"name": "피크민", "price": 14000}, {"name": "피크민 노트", "price": 8000}, {"name": "피크민 머리삔", "price": 14000}, {"name": "피크민 지갑", "price": 25000}, {"name": "필통(바나나)", "price": 15000}, {"name": "필통(핑크초컬릿)", "price": 22000}, {"name": "하리오맥주컵", "price": 20000}, {"name": "핸드타올", "price": 15000}, {"name": "행주", "price": 5000}, {"name": "행주(묶음)", "price": 7000}, {"name": "향꽂이 고양이", "price": 3500}, {"name": "허리긴 강아지 키링", "price": 9000}, {"name": "헤어밴드(검정)", "price": 10000}, {"name": "헬로키티 다이어리", "price": 5000}, {"name": "헬로키티 머리핀", "price": 8000}, {"name": "헬로키티 수첩", "price": 5000}, {"name": "헬로키티 스티커", "price": 6000}, {"name": "헬로키티 키링(털옷입은)", "price": 35000}, {"name": "헬로키티 티스푼/포크", "price": 5000}, {"name": "헬로키티 핑크가방", "price": 26000}, {"name": "헬로키티 한정판", "price": 55000}, {"name": "헬로키티(검정+다리)", "price": 30000}, {"name": "헬로키티키링(파랑바지)", "price": 18000}, {"name": "호빵맨젤리", "price": 800}, {"name": "황교동 인형", "price": 10000}, {"name": "황교동 키링", "price": 14000}, {"name": "효자손고양이", "price": 15000}, {"name": "효자캣", "price": 15000}, {"name": "흰스트라이프가디건", "price": 65000}];
 
-let sales = JSON.parse(localStorage.getItem('sales_v2') || '[]');
+const HISTORICAL_SALES = [{"id": "1000000000001", "name": "수저받침대", "qty": 1, "unitPrice": 3000, "amount": 3000, "disc": 0, "pay": "카드", "date": "2026-01-02"}, {"id": "1000000000002", "name": "지우개", "qty": 2, "unitPrice": 3000, "amount": 6000, "disc": 0, "pay": "카드", "date": "2026-01-02"}, {"id": "1000000000003", "name": "키티백팩", "qty": 1, "unitPrice": 45000, "amount": 45000, "disc": 0, "pay": "카드", "date": "2026-01-05"}, {"id": "1000000000004", "name": "라부부", "qty": 1, "unitPrice": 42000, "amount": 42000, "disc": 0, "pay": "카드", "date": "2026-01-05"}, {"id": "1000000000005", "name": "자는고양이", "qty": 1, "unitPrice": 19000, "amount": 19000, "disc": 0, "pay": "카드", "date": "2026-01-05"}, {"id": "1000000000006", "name": "키티 키링", "qty": 1, "unitPrice": 16000, "amount": 16000, "disc": 0, "pay": "카드", "date": "2026-01-05"}, {"id": "1000000000007", "name": "고양이 매트", "qty": 1, "unitPrice": 22000, "amount": 22000, "disc": 0, "pay": "카드", "date": "2026-01-12"}, {"id": "1000000000008", "name": "세리아 키링", "qty": 1, "unitPrice": 3000, "amount": 3000, "disc": 0, "pay": "카드", "date": "2026-01-12"}, {"id": "1000000000009", "name": "포스트잇", "qty": 1, "unitPrice": 5000, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-01-12"}, {"id": "1000000000010", "name": "몬치치(베비치치모자)", "qty": 1, "unitPrice": 40000, "amount": 40000, "disc": 0, "pay": "이체", "date": "2026-01-13"}, {"id": "1000000000011", "name": "딘앤델루카 에코백", "qty": 1, "unitPrice": 32000, "amount": 32000, "disc": 0, "pay": "이체", "date": "2026-01-13"}, {"id": "1000000000012", "name": "샤프", "qty": 1, "unitPrice": 9000, "amount": 9000, "disc": 0, "pay": "카드", "date": "2026-01-14"}, {"id": "1000000000013", "name": "토끼가위", "qty": 1, "unitPrice": 6000, "amount": 6000, "disc": 0, "pay": "카드", "date": "2026-01-15"}, {"id": "1000000000014", "name": "수세미_아사히카제히", "qty": 1, "unitPrice": 3000, "amount": 3000, "disc": 0, "pay": "카드", "date": "2026-01-15"}, {"id": "1000000000015", "name": "일러스트 파우치", "qty": 1, "unitPrice": 18000, "amount": 18000, "disc": 0, "pay": "카드", "date": "2026-01-16"}, {"id": "1000000000016", "name": "종지(소)", "qty": 7, "unitPrice": 3000, "amount": 21000, "disc": 0, "pay": "카드", "date": "2026-01-16"}, {"id": "1000000000017", "name": "키티가방(검정)", "qty": 1, "unitPrice": 32000, "amount": 32000, "disc": 0, "pay": "카드", "date": "2026-01-17"}, {"id": "1000000000018", "name": "샤프", "qty": 1, "unitPrice": 9000, "amount": 9000, "disc": 0, "pay": "카드", "date": "2026-01-17"}, {"id": "1000000000019", "name": "세리아 키링", "qty": 1, "unitPrice": 4000, "amount": 4000, "disc": 0, "pay": "카드", "date": "2026-01-17"}, {"id": "1000000000020", "name": "커플자석키링1", "qty": 1, "unitPrice": 16000, "amount": 16000, "disc": 0, "pay": "현금", "date": "2026-01-19"}, {"id": "1000000000021", "name": "손수건2", "qty": 1, "unitPrice": 9000, "amount": 9000, "disc": 0, "pay": "현금", "date": "2026-01-19"}, {"id": "1000000000022", "name": "긴자와플", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "카드", "date": "2026-01-21"}, {"id": "1000000000023", "name": "냄비받침", "qty": 2, "unitPrice": 10000, "amount": 20000, "disc": 0, "pay": "카드", "date": "2026-01-23"}, {"id": "1000000000024", "name": "퍼프", "qty": 1, "unitPrice": 7000, "amount": 7000, "disc": 0, "pay": "카드", "date": "2026-01-23"}, {"id": "1000000000025", "name": "종지(소)", "qty": 1, "unitPrice": 3000, "amount": 3000, "disc": 0, "pay": "카드", "date": "2026-01-23"}, {"id": "1000000000026", "name": "커피잔(+박스)", "qty": 1, "unitPrice": 12000, "amount": 12000, "disc": 0, "pay": "카드", "date": "2026-01-24"}, {"id": "1000000000027", "name": "운동화", "qty": 1, "unitPrice": 250000, "amount": 250000, "disc": 0, "pay": "이체", "date": "2026-01-26"}, {"id": "1000000000028", "name": "가위", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "카드", "date": "2026-01-26"}, {"id": "1000000000029", "name": "양초_스마일1", "qty": 1, "unitPrice": 5000, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-01-27"}, {"id": "1000000000030", "name": "샤프", "qty": 1, "unitPrice": 9000, "amount": 9000, "disc": 0, "pay": "카드", "date": "2026-01-30"}, {"id": "1000000000031", "name": "딘앤델루카 에코백", "qty": 1, "unitPrice": 32000, "amount": 32000, "disc": 0, "pay": "카드", "date": "2026-02-02"}, {"id": "1000000000032", "name": "클립", "qty": 1, "unitPrice": 5000, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-02-02"}, {"id": "1000000000033", "name": "냄비장갑", "qty": 1, "unitPrice": 18000, "amount": 18000, "disc": 0, "pay": "카드", "date": "2026-02-05"}, {"id": "1000000000034", "name": "세리아 키링", "qty": 2, "unitPrice": 4000, "amount": 8000, "disc": 0, "pay": "카드", "date": "2026-02-06"}, {"id": "1000000000035", "name": "다꾸크레용", "qty": 1, "unitPrice": 8500, "amount": 8500, "disc": 0, "pay": "카드", "date": "2026-02-07"}, {"id": "1000000000036", "name": "세일박스(산리오인형)2개", "qty": 2, "unitPrice": 6000, "amount": 12000, "disc": 0, "pay": "카드", "date": "2026-02-12"}, {"id": "1000000000037", "name": "다꾸스탬프(고양이-테무)", "qty": 1, "unitPrice": 3500, "amount": 3500, "disc": 0, "pay": "카드", "date": "2026-02-13"}, {"id": "1000000000038", "name": "여권지갑", "qty": 1, "unitPrice": 22000, "amount": 22000, "disc": 0, "pay": "현금", "date": "2026-02-13"}, {"id": "1000000000039", "name": "토토로 키링(소)", "qty": 1, "unitPrice": 6000, "amount": 6000, "disc": 0, "pay": "카드", "date": "2026-02-13"}, {"id": "1000000000040", "name": "다꾸사인펜", "qty": 1, "unitPrice": 5000, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-02-13"}, {"id": "1000000000041", "name": "피크민 노트", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "현금", "date": "2026-02-13"}, {"id": "1000000000042", "name": "머리삔", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "카드", "date": "2026-02-13"}, {"id": "1000000000043", "name": "토토로 손수건", "qty": 1, "unitPrice": 18000, "amount": 18000, "disc": 0, "pay": "카드", "date": "2026-02-13"}, {"id": "1000000000044", "name": "멜로디카드", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "카드", "date": "2026-02-14"}, {"id": "1000000000045", "name": "세리아 키링", "qty": 2, "unitPrice": 3000, "amount": 6000, "disc": 0, "pay": "현금", "date": "2026-02-20"}, {"id": "1000000000046", "name": "베이지백팩", "qty": 1, "unitPrice": 25000, "amount": 25000, "disc": 0, "pay": "이체", "date": "2026-02-20"}, {"id": "1000000000047", "name": "몬치치 파우치", "qty": 1, "unitPrice": 16000, "amount": 16000, "disc": 0, "pay": "카드", "date": "2026-03-03"}, {"id": "1000000000048", "name": "청바지1", "qty": 1, "unitPrice": 80000, "amount": 80000, "disc": 0, "pay": "이체", "date": "2026-03-03"}, {"id": "1000000000049", "name": "세리아 키링", "qty": 1, "unitPrice": 4000, "amount": 4000, "disc": 0, "pay": "현금", "date": "2026-03-03"}, {"id": "1000000000050", "name": "지갑(세일품)", "qty": 1, "unitPrice": 5000, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000051", "name": "빵도로보키링(세일품)", "qty": 2, "unitPrice": 7000, "amount": 14000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000052", "name": "장바구니 키링(데님)", "qty": 1, "unitPrice": 10000, "amount": 10000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000053", "name": "조던후드", "qty": 1, "unitPrice": 59000, "amount": 59000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000054", "name": "옷교환(청바지→데님혼방셔츠)", "qty": 1, "unitPrice": 37000, "amount": 37000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000055", "name": "키티네임텍", "qty": 2, "unitPrice": 22000, "amount": 44000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000056", "name": "산리오 지퍼백", "qty": 1, "unitPrice": 1000, "amount": 1000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000057", "name": "고양이 지퍼백", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000058", "name": "마스크팩(엑소좀)", "qty": 1, "unitPrice": 12000, "amount": 12000, "disc": 0, "pay": "카드", "date": "2026-03-04"}, {"id": "1000000000059", "name": "고양이 주방수건(소)", "qty": 1, "unitPrice": 15000, "amount": 15000, "disc": 0, "pay": "현금", "date": "2026-03-05"}, {"id": "1000000000060", "name": "접시2", "qty": 1, "unitPrice": 5000, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-03-06"}, {"id": "1000000000061", "name": "장가방", "qty": 2, "unitPrice": 15000, "amount": 30000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000062", "name": "종지(소)", "qty": 4, "unitPrice": 3000, "amount": 12000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000063", "name": "냄비받침대(소)", "qty": 2, "unitPrice": 5000, "amount": 10000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000064", "name": "냄비받침", "qty": 1, "unitPrice": 10000, "amount": 10000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000065", "name": "딘앤델루카 에코백", "qty": 1, "unitPrice": 32000, "amount": 32000, "disc": 0, "pay": "현금", "date": "2026-03-07"}, {"id": "1000000000066", "name": "큐빅반지", "qty": 1, "unitPrice": 32000, "amount": 32000, "disc": 0, "pay": "현금", "date": "2026-03-07"}, {"id": "1000000000067", "name": "맨투맨(강아지-세일)", "qty": 1, "unitPrice": 55000, "amount": 55000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000068", "name": "볼펜_(액션_미피)", "qty": 1, "unitPrice": 12000, "amount": 12000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000069", "name": "수세미_일반", "qty": 2, "unitPrice": 2500, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000070", "name": "머리끈(pin ball)", "qty": 1, "unitPrice": 6500, "amount": 6500, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000071", "name": "자석가위(소)", "qty": 1, "unitPrice": 6000, "amount": 6000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000072", "name": "효자캣", "qty": 1, "unitPrice": 15000, "amount": 15000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000073", "name": "손거울", "qty": 1, "unitPrice": 10000, "amount": 10000, "disc": 0, "pay": "카드", "date": "2026-03-07"}, {"id": "1000000000074", "name": "치이카와 에어팟케이스", "qty": 1, "unitPrice": 35000, "amount": 35000, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000075", "name": "치이카와 방울", "qty": 2, "unitPrice": 3000, "amount": 6000, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000076", "name": "치이카와 방울", "qty": 1, "unitPrice": 10000, "amount": 10000, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000077", "name": "다꾸도장(핑크)", "qty": 1, "unitPrice": 2500, "amount": 2500, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000078", "name": "볼펜_치이카와", "qty": 1, "unitPrice": 7000, "amount": 7000, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000079", "name": "치이카와 지우개", "qty": 2, "unitPrice": 3500, "amount": 7000, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000080", "name": "헬로키티 한정판", "qty": 1, "unitPrice": 55000, "amount": 55000, "disc": 0, "pay": "카드", "date": "2026-03-08"}, {"id": "1000000000081", "name": "양산", "qty": 1, "unitPrice": 15000, "amount": 15000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000082", "name": "몬치치 베이비2", "qty": 1, "unitPrice": 45000, "amount": 45000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000083", "name": "눈가린고양이 동전지갑 키링", "qty": 1, "unitPrice": 14000, "amount": 14000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000084", "name": "큐빅팔찌", "qty": 1, "unitPrice": 32000, "amount": 32000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000085", "name": "고무머리끈", "qty": 2, "unitPrice": 2000, "amount": 4000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000086", "name": "장우산(천)", "qty": 1, "unitPrice": 18000, "amount": 18000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000087", "name": "다꾸도장(핑크)", "qty": 2, "unitPrice": 2500, "amount": 5000, "disc": 0, "pay": "카드", "date": "2026-03-09"}, {"id": "1000000000088", "name": "볼펜_MOMA", "qty": 1, "unitPrice": 12000, "amount": 12000, "disc": 0, "pay": "이체", "date": "2026-03-09"}, {"id": "1000000000089", "name": "볼펜_치이카와", "qty": 1, "unitPrice": 7000, "amount": 7000, "disc": 0, "pay": "이체", "date": "2026-03-09"}, {"id": "1000000000090", "name": "몬치치", "qty": 1, "unitPrice": 8000, "amount": 8000, "disc": 0, "pay": "이체", "date": "2026-03-09"}, {"id": "1000000000091", "name": "필통(핑크초컬릿)", "qty": 1, "unitPrice": 22000, "amount": 22000, "disc": 0, "pay": "이체", "date": "2026-03-09"}, {"id": "1000000000092", "name": "구름이 키링", "qty": 1, "unitPrice": 18000, "amount": 18000, "disc": 0, "pay": "이체", "date": "2026-03-09"}, {"id": "1000000000093", "name": "세리아 키링", "qty": 2, "unitPrice": 4000, "amount": 8000, "disc": 0, "pay": "이체", "date": "2026-03-09"}, {"id": "1000000000094", "name": "곰돌이 키링 에코백", "qty": 1, "unitPrice": 26000, "amount": 26000, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000000095", "name": "세리아 키링", "qty": 2, "unitPrice": 4000, "amount": 8000, "disc": 0, "pay": "현금", "date": "2026-03-10"}, {"id": "1000000000096", "name": "청바지1", "qty": 1, "unitPrice": 79000, "amount": 79000, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000000097", "name": "워싱티셔츠", "qty": 1, "unitPrice": 39000, "amount": 39000, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000000098", "name": "챙모자1", "qty": 1, "unitPrice": 25000, "amount": 25000, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000000099", "name": "빈백토끼키링", "qty": 1, "unitPrice": 15000, "amount": 15000, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000000100", "name": "세리아 키링", "qty": 1, "unitPrice": 4000, "amount": 4000, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000000101", "name": "다꾸도장(핑크)", "qty": 1, "unitPrice": 2500, "amount": 2500, "disc": 0, "pay": "카드", "date": "2026-03-10"}, {"id": "1000000001200", "name": "기타매출", "qty": 1, "unitPrice": 579000, "amount": 579000, "disc": 0, "pay": "카드", "date": "2026-02-28"}];
+let sales = JSON.parse(localStorage.getItem('sales_v2') || 'null');
+if (!sales) {
+  sales = HISTORICAL_SALES;
+  localStorage.setItem('sales_v2', JSON.stringify(sales));
+} else {
+  // 기존 데이터에 과거 내역 없으면 병합
+  const existingIds = new Set(sales.map(s => s.id));
+  const toAdd = HISTORICAL_SALES.filter(s => !existingIds.has(s.id));
+  if (toAdd.length > 0) {
+    sales = [...toAdd, ...sales];
+    localStorage.setItem('sales_v2', JSON.stringify(sales));
+  }
+}
 let products = JSON.parse(localStorage.getItem('products_v2') || 'null');
 if (!products) {
   products = INITIAL_PRODUCTS;
@@ -289,12 +360,13 @@ function formatMoney(n) { return '₩' + n.toLocaleString(); }
 
 // ─── 탭 ───
 function showTab(name) {
-  ['input','history','chart','products'].forEach(t => {
+  ['input','bulk','history','chart','products'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['input','history','chart','products'][i] === name);
+    el.classList.toggle('active', ['input','bulk','history','chart','products'][i] === name);
   });
+  if (name==='bulk') renderBulk();
   if (name==='history') renderHistory();
   if (name==='chart') renderCharts();
   if (name==='products') renderProducts();
@@ -592,7 +664,283 @@ function deleteProduct(name) {
   renderProducts();
 }
 
+// ═══════════════════════════════
+// 고객 장바구니 계산기
+// ═══════════════════════════════
+let cart = [];
+let cartPay = '카드';
+let cartDisc = 0;
+let cartAcIndex = -1;
+
+function onCartInput() {
+  const q = document.getElementById('cartName').value.trim();
+  cartAcIndex = -1;
+  if (!q) { document.getElementById('cartAcList').style.display='none'; return; }
+  const matches = products.filter(p => p.name.includes(q)).slice(0,10);
+  if (!matches.length) { document.getElementById('cartAcList').style.display='none'; return; }
+  const list = document.getElementById('cartAcList');
+  list.innerHTML = matches.map((p,i) => `
+    <div class="autocomplete-item" onmousedown="selectCartProduct('${p.name}',${p.price})" data-i="${i}">
+      <span>${p.name}</span><span class="price-hint">${p.price.toLocaleString()}원</span>
+    </div>`).join('');
+  list.style.display='block';
+}
+
+function onCartKeydown(e) {
+  const list = document.getElementById('cartAcList');
+  const items = list.querySelectorAll('.autocomplete-item');
+  if (!items.length) return;
+  if (e.key==='ArrowDown') { cartAcIndex=Math.min(cartAcIndex+1,items.length-1); items.forEach((el,i)=>el.style.background=i===cartAcIndex?'#f1f3ff':''); e.preventDefault(); }
+  else if (e.key==='ArrowUp') { cartAcIndex=Math.max(cartAcIndex-1,-1); items.forEach((el,i)=>el.style.background=i===cartAcIndex?'#f1f3ff':''); e.preventDefault(); }
+  else if (e.key==='Enter') { if(cartAcIndex>=0) items[cartAcIndex].dispatchEvent(new MouseEvent('mousedown')); e.preventDefault(); }
+  else if (e.key==='Escape') { list.style.display='none'; }
+}
+
+function selectCartProduct(name, price) {
+  document.getElementById('cartName').value = name;
+  document.getElementById('cartName').dataset.price = price;
+  document.getElementById('cartAcList').style.display='none';
+  document.getElementById('cartQty').focus();
+}
+
+function addToCart() {
+  const name = document.getElementById('cartName').value.trim();
+  const price = parseInt(document.getElementById('cartName').dataset.price||'0') ||
+                (products.find(p=>p.name===name)?.price||0);
+  const qty = parseInt(document.getElementById('cartQty').value)||1;
+  if (!name || !price) { alert('품목을 선택하세요'); return; }
+  const existing = cart.find(c=>c.name===name);
+  if (existing) { existing.qty += qty; }
+  else { cart.push({name, price, qty}); }
+  document.getElementById('cartName').value='';
+  document.getElementById('cartName').dataset.price='';
+  document.getElementById('cartQty').value='1';
+  renderCart();
+}
+
+function removeFromCart(idx) {
+  cart.splice(idx,1);
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById('cartItems');
+  if (!cart.length) { el.innerHTML='<div style="text-align:center;color:#adb5bd;padding:12px;font-size:13px">담긴 품목 없음</div>'; updateCartTotal(); return; }
+  el.innerHTML = cart.map((c,i) => `
+    <div class="cart-item">
+      <div class="cart-item-name">${c.name} <span style="color:#adb5bd">×${c.qty}</span></div>
+      <div class="cart-item-price">${(c.price*c.qty).toLocaleString()}원</div>
+      <button class="cart-item-del" onclick="removeFromCart(${i})">×</button>
+    </div>`).join('');
+  updateCartTotal();
+}
+
+function updateCartTotal() {
+  const subtotal = cart.reduce((a,c)=>a+c.price*c.qty, 0);
+  const discounted = cartDisc>0 ? Math.round(subtotal*(1-cartDisc/100)) : subtotal;
+  document.getElementById('cartTotal').textContent = '₩'+discounted.toLocaleString();
+  const prev = document.getElementById('cartDiscPreview');
+  if (cartDisc>0 && subtotal>0) {
+    prev.textContent = `정가 ${subtotal.toLocaleString()}원 → ${cartDisc}% 할인 → ${discounted.toLocaleString()}원`;
+  } else { prev.textContent=''; }
+}
+
+function selectCartPay(p) {
+  cartPay=p;
+  document.querySelectorAll('#calcCard .pay-btn').forEach(el=>el.classList.toggle('active',el.textContent===p));
+}
+
+function selectCartDisc(d) {
+  cartDisc=d;
+  document.querySelectorAll('#calcCard .disc-btn').forEach(el=>{
+    const v=el.textContent==='없음'?0:parseInt(el.textContent);
+    el.classList.toggle('active',v===d);
+  });
+  updateCartTotal();
+}
+
+function registerCart() {
+  if (!cart.length) { alert('담긴 품목이 없습니다'); return; }
+  const date = document.getElementById('saleDate').value;
+  const subtotal = cart.reduce((a,c)=>a+c.price*c.qty,0);
+  const discRate = cartDisc;
+  cart.forEach(c => {
+    const orig = c.price*c.qty;
+    const amt = discRate>0 ? Math.round(orig*(1-discRate/100)*c.qty*c.price/subtotal*c.qty) : orig;
+    const finalAmt = discRate>0 ? Math.round(orig*(1-discRate/100)) : orig;
+    sales.push({
+      id: Date.now().toString()+Math.random().toString(36).slice(2,5),
+      name:c.name, qty:c.qty, unitPrice:c.price,
+      amount: finalAmt,
+      disc:discRate, pay:cartPay, date
+    });
+  });
+  localStorage.setItem('sales_v2', JSON.stringify(sales));
+  clearCart();
+  updateStats();
+  renderTodaySales();
+  alert(`${cart.length||'여러'} 품목이 등록되었습니다`);
+}
+
+function clearCart() {
+  cart=[];
+  cartPay='카드';
+  cartDisc=0;
+  document.querySelectorAll('#calcCard .pay-btn').forEach(el=>el.classList.toggle('active',el.textContent==='카드'));
+  document.querySelectorAll('#calcCard .disc-btn').forEach(el=>el.classList.toggle('active',el.textContent==='없음'));
+  renderCart();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#calcCard .input-group') && !e.target.closest('#cartName')) {
+    const l = document.getElementById('cartAcList');
+    if(l) l.style.display='none';
+  }
+});
+
+// ═══════════════════════════════
+// 과거 매출 일괄 입력
+// ═══════════════════════════════
+let bulkPay = '카드';
+let bulkRowCount = 0;
+
+function renderBulk() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('bulkDate').value = today;
+  if (bulkRowCount===0) addBulkSale();
+  renderBulkHistory();
+}
+
+function addBulkSale() {
+  bulkRowCount++;
+  const id = 'bulk_'+bulkRowCount;
+  const row = document.createElement('div');
+  row.className = 'bulk-row';
+  row.id = id;
+  row.innerHTML = `
+    <div style="position:relative">
+      <input type="text" placeholder="품목 검색..." autocomplete="off"
+        oninput="onBulkInput(this)" onkeydown="onBulkKeydown(event,this)"
+        style="width:100%;padding:8px 10px;border:1px solid #dee2e6;border-radius:8px;font-size:14px;font-family:inherit">
+      <div class="autocomplete-list" style="display:none"></div>
+    </div>
+    <input type="number" value="1" min="1" oninput="calcBulkTotal()"
+      style="width:100%;padding:8px 6px;border:1px solid #dee2e6;border-radius:8px;font-size:14px;font-family:inherit;text-align:center">
+    <input type="number" placeholder="단가" oninput="calcBulkTotal()"
+      style="width:100%;padding:8px 10px;border:1px solid #dee2e6;border-radius:8px;font-size:14px;font-family:inherit">
+    <button onclick="removeBulkRow('${id}')"
+      style="background:none;border:1px solid #dee2e6;border-radius:8px;color:#adb5bd;cursor:pointer;font-size:16px;padding:0;height:38px;width:36px">×</button>`;
+  document.getElementById('bulkRows').appendChild(row);
+  calcBulkTotal();
+}
+
+function removeBulkRow(id) {
+  document.getElementById(id)?.remove();
+  calcBulkTotal();
+}
+
+function onBulkInput(inp) {
+  const q = inp.value.trim();
+  const acList = inp.closest('div').querySelector('.autocomplete-list');
+  if (!q) { acList.style.display='none'; return; }
+  const matches = products.filter(p=>p.name.includes(q)).slice(0,8);
+  if (!matches.length) { acList.style.display='none'; return; }
+  acList.innerHTML = matches.map(p=>`
+    <div class="autocomplete-item" onmousedown="selectBulkProduct(this,'${p.name}',${p.price})">
+      <span>${p.name}</span><span class="price-hint">${p.price.toLocaleString()}원</span>
+    </div>`).join('');
+  acList.style.display='block';
+}
+
+function onBulkKeydown(e, inp) {
+  const acList = inp.closest('div').querySelector('.autocomplete-list');
+  const items = acList.querySelectorAll('.autocomplete-item');
+  if (e.key==='Escape') acList.style.display='none';
+}
+
+function selectBulkProduct(itemEl, name, price) {
+  const row = itemEl.closest('.bulk-row');
+  row.querySelector('input[type=text]').value = name;
+  row.querySelector('input[type=text]').dataset.price = price;
+  row.querySelectorAll('input[type=number]')[1].value = price;
+  itemEl.closest('.autocomplete-list').style.display='none';
+  calcBulkTotal();
+}
+
+function selectBulkPay(p) {
+  bulkPay=p;
+  document.querySelectorAll('#tab-bulk .pay-btn').forEach(el=>el.classList.toggle('active',el.textContent===p));
+}
+
+function calcBulkTotal() {
+  let total=0;
+  document.querySelectorAll('.bulk-row').forEach(row=>{
+    const qty=parseInt(row.querySelectorAll('input[type=number]')[0]?.value)||1;
+    const price=parseInt(row.querySelectorAll('input[type=number]')[1]?.value)||0;
+    total+=qty*price;
+  });
+  document.getElementById('bulkTotal').textContent='₩'+total.toLocaleString();
+}
+
+function commitBulk() {
+  const date = document.getElementById('bulkDate').value;
+  if (!date) { alert('날짜를 선택하세요'); return; }
+  const rows = document.querySelectorAll('.bulk-row');
+  const toAdd=[];
+  rows.forEach(row=>{
+    const name=row.querySelector('input[type=text]').value.trim();
+    const qty=parseInt(row.querySelectorAll('input[type=number]')[0]?.value)||1;
+    const price=parseInt(row.querySelectorAll('input[type=number]')[1]?.value)||0;
+    if(name && price>0) {
+      toAdd.push({
+        id:Date.now().toString()+Math.random().toString(36).slice(2,6),
+        name,qty,unitPrice:price,amount:qty*price,disc:0,pay:bulkPay,date
+      });
+    }
+  });
+  if(!toAdd.length){alert('입력된 항목이 없습니다');return;}
+  sales.push(...toAdd);
+  localStorage.setItem('sales_v2',JSON.stringify(sales));
+  // 초기화
+  document.getElementById('bulkRows').innerHTML='';
+  bulkRowCount=0;
+  addBulkSale();
+  calcBulkTotal();
+  updateStats();
+  renderBulkHistory();
+  alert(`${toAdd.length}건 등록 완료!`);
+}
+
+function renderBulkHistory() {
+  const el=document.getElementById('bulkHistory');
+  const recent=sales.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,30);
+  if(!recent.length){el.innerHTML='';return;}
+  const byDate={};
+  recent.forEach(s=>{
+    if(!byDate[s.date])byDate[s.date]=[];
+    byDate[s.date].push(s);
+  });
+  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#495057;margin-bottom:8px">최근 등록 내역</div>'+
+    Object.keys(byDate).sort().reverse().slice(0,7).map(d=>{
+      const ds=byDate[d];
+      const total=ds.reduce((a,s)=>a+s.amount,0);
+      return `<div class="history-item">
+        <div class="history-header" onclick="toggleHistory(this)" style="cursor:pointer">
+          <span class="history-date">${formatDateKo(d)}</span>
+          <span class="history-total">${formatMoney(total)} <span style="font-size:11px;color:#adb5bd">${ds.length}건</span></span>
+        </div>
+        <div class="history-body">
+          ${ds.map(s=>`<div class="history-row">
+            <span class="history-item-name">${s.name} ×${s.qty}</span>
+            <span class="history-item-price">${formatMoney(s.amount)}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+}
+
 init();
+renderCart();
 </script>
 </body>
 </html>

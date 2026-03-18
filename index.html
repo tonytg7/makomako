@@ -181,62 +181,111 @@
     </div>
   </div>
 
-  <div class="form-card">
-    <h3>판매 입력</h3>
-    <div class="form-row">
-      <div>
-        <label>품목명</label>
-        <div class="input-group">
-          <input type="text" id="productName" placeholder="품목 검색..." autocomplete="off" oninput="onProductInput()" onkeydown="onProductKeydown(event)">
-          <div class="autocomplete-list" id="autocompleteList" style="display:none"></div>
+  <div class="content-grid">
+    <!-- 왼쪽: 판매 입력 -->
+    <div class="left-panel">
+      <div class="form-card">
+        <h3>판매 입력</h3>
+        <div class="form-row">
+          <div>
+            <label>품목명</label>
+            <div class="input-group">
+              <input type="text" id="productName" placeholder="품목 검색..." autocomplete="off" oninput="onProductInput()" onkeydown="onProductKeydown(event)">
+              <div class="autocomplete-list" id="autocompleteList" style="display:none"></div>
+            </div>
+          </div>
+          <div>
+            <label>수량</label>
+            <input type="number" id="quantity" value="1" min="1" oninput="calcTotal()">
+          </div>
+          <div>
+            <label>단가 (원)</label>
+            <input type="number" id="unitPrice" placeholder="0" oninput="calcTotal()">
+          </div>
         </div>
-      </div>
-      <div>
-        <label>수량</label>
-        <input type="number" id="quantity" value="1" min="1" oninput="calcTotal()">
-      </div>
-      <div>
-        <label>단가 (원)</label>
-        <input type="number" id="unitPrice" placeholder="0" oninput="calcTotal()">
-      </div>
-    </div>
-    <div class="form-row-full">
-      <div>
-        <label>결제 방법</label>
-        <div class="pay-btns">
-          <button class="pay-btn active" onclick="selectPay('카드')">카드</button>
-          <button class="pay-btn" onclick="selectPay('현금')">현금</button>
-          <button class="pay-btn" onclick="selectPay('이체')">이체</button>
+        <div class="form-row-full">
+          <div>
+            <label>결제 방법</label>
+            <div class="pay-btns">
+              <button class="pay-btn active" onclick="selectPay('카드')">카드</button>
+              <button class="pay-btn" onclick="selectPay('현금')">현금</button>
+              <button class="pay-btn" onclick="selectPay('이체')">이체</button>
+            </div>
+          </div>
+          <div>
+            <label>할인율</label>
+            <div class="pay-btns">
+              <button class="disc-btn active" onclick="selectDisc(0)">없음</button>
+              <button class="disc-btn" onclick="selectDisc(5)">5%</button>
+              <button class="disc-btn" onclick="selectDisc(10)">10%</button>
+              <button class="disc-btn" onclick="selectDisc(15)">15%</button>
+              <button class="disc-btn" onclick="selectDisc(20)">20%</button>
+            </div>
+          </div>
+          <div>
+            <label>판매일</label>
+            <input type="date" id="saleDate">
+          </div>
         </div>
-      </div>
-      <div>
-        <label>할인율</label>
-        <div class="pay-btns">
-          <button class="disc-btn active" onclick="selectDisc(0)">없음</button>
-          <button class="disc-btn" onclick="selectDisc(5)">5%</button>
-          <button class="disc-btn" onclick="selectDisc(10)">10%</button>
-          <button class="disc-btn" onclick="selectDisc(15)">15%</button>
-          <button class="disc-btn" onclick="selectDisc(20)">20%</button>
+        <div class="day-total">
+          <div class="day-total-label">선택일 합계</div>
+          <div style="text-align:right">
+            <div class="day-total-value" id="dayTotal">₩0</div>
+            <div id="discPreview" style="font-size:12px;color:#e67700;margin-top:2px;display:none"></div>
+          </div>
         </div>
+        <button class="btn-primary" onclick="addSale()">+ 판매 등록</button>
       </div>
-      <div>
-        <label>판매일</label>
-        <input type="date" id="saleDate">
-      </div>
+      <div id="todaySalesList"></div>
     </div>
 
-    <div class="day-total">
-      <div class="day-total-label">선택일 합계</div>
-      <div style="text-align:right">
-        <div class="day-total-value" id="dayTotal">₩0</div>
-        <div id="discPreview" style="font-size:12px;color:#e67700;margin-top:2px;display:none"></div>
+    <!-- 오른쪽: 고객 장바구니 -->
+    <div class="right-panel">
+      <div class="form-card" id="calcCard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="margin:0">🛒 고객 장바구니</h3>
+          <button onclick="clearCart()" style="background:none;border:none;font-size:12px;color:#adb5bd;cursor:pointer;font-family:inherit">초기화</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px;gap:8px;margin-bottom:8px">
+          <div style="position:relative">
+            <input type="text" id="cartName" placeholder="품목 검색..." autocomplete="off"
+              oninput="onCartInput()" onkeydown="onCartKeydown(event)"
+              style="width:100%;padding:9px 12px;border:1px solid #dee2e6;border-radius:8px;font-size:14px;font-family:inherit">
+            <div class="autocomplete-list" id="cartAcList" style="display:none"></div>
+          </div>
+          <input type="number" id="cartQty" value="1" min="1"
+            style="width:100%;padding:9px 6px;border:1px solid #dee2e6;border-radius:8px;font-size:14px;font-family:inherit;text-align:center">
+        </div>
+        <button onclick="addToCart()" class="btn-primary" style="margin-bottom:12px;padding:9px">+ 담기</button>
+        <div id="cartItems" style="min-height:40px"></div>
+        <div style="border-top:1px solid #e9ecef;margin:10px 0 8px"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:13px;color:#495057;font-weight:600">합계</span>
+          <span style="font-size:22px;font-weight:800;color:#4361ee" id="cartTotal">₩0</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#495057;display:block;margin-bottom:4px">결제수단</label>
+            <div class="pay-btns">
+              <button class="pay-btn active" onclick="selectCartPay('카드')">카드</button>
+              <button class="pay-btn" onclick="selectCartPay('현금')">현금</button>
+              <button class="pay-btn" onclick="selectCartPay('이체')">이체</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#495057;display:block;margin-bottom:4px">할인율</label>
+            <div class="pay-btns">
+              <button class="disc-btn active" onclick="selectCartDisc(0)">없음</button>
+              <button class="disc-btn" onclick="selectCartDisc(10)">10%</button>
+              <button class="disc-btn" onclick="selectCartDisc(20)">20%</button>
+            </div>
+          </div>
+        </div>
+        <div id="cartDiscPreview" style="font-size:12px;color:#e67700;text-align:right;min-height:18px;margin-bottom:8px"></div>
+        <button onclick="registerCart()" class="btn-primary" style="background:#2f9e44">✓ 전체 판매 등록</button>
       </div>
     </div>
-
-    <button class="btn-primary" onclick="addSale()">+ 판매 등록</button>
-  </div>
-
-  <div id="todaySalesList"></div>
+  </div><!-- /content-grid -->
 </div>
 
 
@@ -794,6 +843,7 @@ function removeFromCart(idx) {
 
 function renderCart() {
   const el = document.getElementById('cartItems');
+  if (!el) return;
   if (!cart.length) { el.innerHTML='<div style="text-align:center;color:#adb5bd;padding:12px;font-size:13px">담긴 품목 없음</div>'; updateCartTotal(); return; }
   el.innerHTML = cart.map((c,i) => `
     <div class="cart-item">
@@ -805,6 +855,7 @@ function renderCart() {
 }
 
 function updateCartTotal() {
+  if (!document.getElementById('cartTotal')) return;
   const subtotal = cart.reduce((a,c)=>a+c.price*c.qty, 0);
   const discounted = cartDisc>0 ? Math.round(subtotal*(1-cartDisc/100)) : subtotal;
   document.getElementById('cartTotal').textContent = '₩'+discounted.toLocaleString();

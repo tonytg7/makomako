@@ -384,9 +384,9 @@
   <!-- 채널 필터 -->
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
     <span style="font-size:13px;font-weight:700;color:#495057;align-self:center">채널 표시:</span>
-    <button class="pay-btn active" id="filterShop" onclick="toggleChartFilter('shop')">🏪 매장</button>
-    <button class="pay-btn active" id="filterKream" onclick="toggleChartFilter('kream')">🟠 KREAM</button>
-    <button class="pay-btn active" id="filterNaver" onclick="toggleChartFilter('naver')">🟢 스마트스토어</button>
+    <button class="pay-btn" id="filterShop" style="background:#2961C6;border-color:#2961C6;color:#fff" onclick="toggleChartFilter('shop')"> 매장</button>
+    <button class="pay-btn" id="filterKream" style="background:#25A3CC;border-color:#25A3CC;color:#fff" onclick="toggleChartFilter('kream')"> KREAM</button>
+    <button class="pay-btn" id="filterNaver" style="background:#28A386;border-color:#28A386;color:#fff" onclick="toggleChartFilter('naver')"> 스마트스토어</button>
   </div>
 
   <div class="chart-card">
@@ -396,18 +396,18 @@
   <div class="chart-card">
     <h3>월별 매출 (최근 6개월)</h3>
     <div style="display:flex;gap:8px;margin-bottom:10px;font-size:12px">
-      <span style="color:#4361ee">■ 매장</span>
-      <span style="color:#ff6b35">■ KREAM</span>
-      <span style="color:#2f9e44">■ 스마트스토어</span>
+      <span style="color:#2961C6">■ 매장</span>
+      <span style="color:#25A3CC">■ KREAM</span>
+      <span style="color:#28A386">■ 스마트스토어</span>
     </div>
     <canvas id="monthlyChart"></canvas>
   </div>
   <div class="chart-card">
     <h3>분기별 매출</h3>
     <div style="display:flex;gap:8px;margin-bottom:10px;font-size:12px">
-      <span style="color:#4361ee">■ 매장</span>
-      <span style="color:#ff6b35">■ KREAM</span>
-      <span style="color:#2f9e44">■ 스마트스토어</span>
+      <span style="color:#2961C6">■ 매장</span>
+      <span style="color:#25A3CC">■ KREAM</span>
+      <span style="color:#28A386">■ 스마트스토어</span>
     </div>
     <canvas id="quarterChart"></canvas>
   </div>
@@ -740,12 +740,56 @@ function clearFilter() {
 
 // ─── 차트 ───
 // 차트 필터 상태
+
+// 스택 바 차트 합산 레이블 플러그인
+const stackedTotalPlugin = {
+  id: 'stackedTotalLabels',
+  afterDatasetsDraw(chart, args, options) {
+    if (!chart.options.plugins.stackedTotalLabels) return;
+    const { ctx, data } = chart;
+    const totals = data.labels.map((_, i) =>
+      data.datasets.reduce((sum, ds) => sum + (Number(ds.data[i]) || 0), 0)
+    );
+    // 각 스택의 마지막 바 위에 합산 표시
+    const lastDataset = chart.data.datasets[chart.data.datasets.length - 1];
+    const meta = chart.getDatasetMeta(chart.data.datasets.length - 1);
+    ctx.save();
+    meta.data.forEach((bar, i) => {
+      const total = totals[i];
+      if (!total) return;
+      ctx.fillStyle = '#1a1a2e';
+      ctx.font = 'bold 11px Apple SD Gothic Neo, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      // 바 상단에서 6px 위
+      const topY = bar.y - 4;
+      ctx.fillText('₩' + total.toLocaleString(), bar.x, topY);
+    });
+    ctx.restore();
+  }
+};
+
 let chartFilters = { shop:true, kream:true, naver:true };
+
+const FILTER_COLORS = { shop:'#2961C6', kream:'#25A3CC', naver:'#28A386' };
 
 function toggleChartFilter(type) {
   chartFilters[type] = !chartFilters[type];
   const btn = document.getElementById('filter'+type.charAt(0).toUpperCase()+type.slice(1));
-  if (btn) btn.classList.toggle('active', chartFilters[type]);
+  if (btn) {
+    const c = FILTER_COLORS[type];
+    if (chartFilters[type]) {
+      btn.style.background = c;
+      btn.style.borderColor = c;
+      btn.style.color = '#fff';
+      btn.style.opacity = '1';
+    } else {
+      btn.style.background = '#fff';
+      btn.style.borderColor = '#dee2e6';
+      btn.style.color = '#adb5bd';
+      btn.style.opacity = '0.7';
+    }
+  }
   renderCharts();
 }
 
@@ -763,7 +807,7 @@ function renderCharts() {
     days.push(d.toISOString().slice(0,10));
   }
   const dailyTotals = days.map(d => chartFilters.shop ? sales.filter(s=>s.date===d).reduce((a,s)=>a+s.amount,0) : 0);
-  renderChart('dailyChart','bar',days.map(d=>d.slice(5)),dailyTotals,'매장 일별','#4361ee');
+  renderChart('dailyChart','bar',days.map(d=>d.slice(5)),dailyTotals,'매장 일별','#2961C6');
 
   // 월별 (매장 + KREAM + 스마트스토어 스택)
   const months = [];
@@ -779,12 +823,18 @@ function renderCharts() {
   charts['monthlyChart'] = new Chart(document.getElementById('monthlyChart'), {
     type:'bar',
     data:{ labels:months, datasets:[
-      { label:'매장', data:shopMonthly, backgroundColor:'#4361ee', stack:'s' },
-      { label:'KREAM', data:kreamMonthly, backgroundColor:'#ff6b35', stack:'s' },
-      { label:'스마트스토어', data:naverMonthly, backgroundColor:'#2f9e44', stack:'s' }
+      { label:'매장', data:shopMonthly, backgroundColor:'#2961C6', stack:'s' },
+      { label:'KREAM', data:kreamMonthly, backgroundColor:'#25A3CC', stack:'s' },
+      { label:'스마트스토어', data:naverMonthly, backgroundColor:'#28A386', stack:'s' }
     ]},
-    options:{ responsive:true, plugins:{ legend:{position:'bottom'} },
-      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true, ticks:{callback:v=>'₩'+v.toLocaleString()}} } }
+    options:{ responsive:true,
+      plugins:{
+        legend:{position:'bottom'},
+        stackedTotalLabels: true
+      },
+      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true, ticks:{callback:v=>'₩'+v.toLocaleString()}} }
+    },
+    plugins:[stackedTotalPlugin]
   });
 
   // 분기별
@@ -813,12 +863,18 @@ function renderCharts() {
   charts['quarterChart'] = new Chart(document.getElementById('quarterChart'), {
     type:'bar',
     data:{ labels:quarters.map(q=>q.label), datasets:[
-      { label:'매장', data:shopQ, backgroundColor:'#4361ee88', borderColor:'#4361ee', borderWidth:2, stack:'q' },
-      { label:'KREAM', data:kreamQ, backgroundColor:'#ff6b3588', borderColor:'#ff6b35', borderWidth:2, stack:'q' },
-      { label:'스마트스토어', data:naverQ, backgroundColor:'#2f9e4488', borderColor:'#2f9e44', borderWidth:2, stack:'q' }
+      { label:'매장', data:shopQ, backgroundColor:'#2961C688', borderColor:'#2961C6', borderWidth:2, stack:'q' },
+      { label:'KREAM', data:kreamQ, backgroundColor:'#25A3CC88', borderColor:'#25A3CC', borderWidth:2, stack:'q' },
+      { label:'스마트스토어', data:naverQ, backgroundColor:'#28A38688', borderColor:'#28A386', borderWidth:2, stack:'q' }
     ]},
-    options:{ responsive:true, plugins:{ legend:{position:'bottom'} },
-      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true, ticks:{callback:v=>'₩'+v.toLocaleString()}} } }
+    options:{ responsive:true,
+      plugins:{
+        legend:{position:'bottom'},
+        stackedTotalLabels: true
+      },
+      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true, ticks:{callback:v=>'₩'+v.toLocaleString()}} }
+    },
+    plugins:[stackedTotalPlugin]
   });
 
   // 결제 파이 (매장)
@@ -828,7 +884,7 @@ function renderCharts() {
   if (charts['payChart']) charts['payChart'].destroy();
   charts['payChart'] = new Chart(document.getElementById('payChart'), {
     type:'doughnut',
-    data:{ labels:['카드','현금','이체'], datasets:[{ data:[card,cash,transfer], backgroundColor:['#4361ee','#2f9e44','#f59f00'], borderWidth:0 }] },
+    data:{ labels:['카드','현금','이체'], datasets:[{ data:[card,cash,transfer], backgroundColor:['#2961C6','#28A386','#f59f00'], borderWidth:0 }] },
     options:{ responsive:true, plugins:{ legend:{ position:'bottom' } } }
   });
 }
@@ -1307,7 +1363,7 @@ function renderOnline() {
       </div>
       ${items.map(o=>`
         <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f1f3f5">
-          <span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${o.platform==='KREAM'?'#fff0e6':'#e6f4ea'};color:${o.platform==='KREAM'?'#ff6b35':'#2f9e44'}">${o.platform}</span>
+          <span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${o.platform==='KREAM'?'#fff0e6':'#e6f4ea'};color:${o.platform==='KREAM'?'#25A3CC':'#28A386'}">${o.platform}</span>
           <span style="flex:1;font-size:14px;font-weight:600">${formatMoney(o.amount)}</span>
           ${o.memo?`<span style="font-size:12px;color:#adb5bd">${o.memo}</span>`:''}
           <button onclick="deleteOnlineSale('${o.id}')" style="background:none;border:1px solid #dee2e6;color:#adb5bd;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;font-family:inherit">삭제</button>
@@ -1326,8 +1382,8 @@ function renderOnlineSummary(data) {
     <thead><tr style="border-bottom:2px solid #e9ecef">
       <th style="text-align:left;padding:8px 6px;color:#868e96">월</th>
       <th style="text-align:right;padding:8px 6px;color:#4361ee">🏪 매장</th>
-      <th style="text-align:right;padding:8px 6px;color:#ff6b35">🟠 KREAM</th>
-      <th style="text-align:right;padding:8px 6px;color:#2f9e44">🟢 스마트스토어</th>
+      <th style="text-align:right;padding:8px 6px;color:#25A3CC">🔵 KREAM</th>
+      <th style="text-align:right;padding:8px 6px;color:#28A386">🟢 스마트스토어</th>
       <th style="text-align:right;padding:8px 6px;color:#1a1a2e;font-weight:700">합계</th>
     </tr></thead>
     <tbody>${months.map(m=>{
@@ -1337,8 +1393,8 @@ function renderOnlineSummary(data) {
       return `<tr style="border-bottom:1px solid #f1f3f5">
         <td style="padding:8px 6px;font-weight:600">${m}</td>
         <td style="text-align:right;padding:8px 6px">${shop?formatMoney(shop):'-'}</td>
-        <td style="text-align:right;padding:8px 6px;color:#ff6b35">${kream?formatMoney(kream):'-'}</td>
-        <td style="text-align:right;padding:8px 6px;color:#2f9e44">${naver?formatMoney(naver):'-'}</td>
+        <td style="text-align:right;padding:8px 6px;color:#25A3CC">${kream?formatMoney(kream):'-'}</td>
+        <td style="text-align:right;padding:8px 6px;color:#28A386">${naver?formatMoney(naver):'-'}</td>
         <td style="text-align:right;padding:8px 6px;font-weight:800;color:#4361ee">${formatMoney(shop+kream+naver)}</td>
       </tr>`;
     }).join('')}</tbody>

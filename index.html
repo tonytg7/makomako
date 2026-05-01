@@ -151,6 +151,7 @@
 <div class="tabs">
   <div class="tab active" onclick="showTab('input')">📝 매출 입력</div>
   <div class="tab" onclick="showTab('bulk')">📥 과거 입력</div>
+  <div class="tab" onclick="showTab('online')">🌐 온라인 매출</div>
   <div class="tab" onclick="showTab('history')">📋 내역</div>
   <div class="tab" onclick="showTab('chart')">📊 추이</div>
   <div class="tab" onclick="showTab('products')">🏷️ 제품 관리</div>
@@ -326,6 +327,46 @@
   <div id="bulkHistory" style="margin-top:8px"></div>
 </div>
 
+
+<!-- 온라인 매출 -->
+<div id="tab-online" class="content" style="display:none">
+  <div class="form-card">
+    <h3>🌐 온라인 매출 입력</h3>
+    <p style="font-size:13px;color:#868e96;margin-bottom:16px">KREAM·네이버 스마트스토어 월별 매출을 입력하세요. 월 마감 시 전체 매출에 합산됩니다.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label>연월</label>
+        <input type="month" id="onlineMonth">
+      </div>
+      <div>
+        <label>플랫폼</label>
+        <select id="onlinePlatform" style="width:100%;padding:9px 12px;border:1px solid #dee2e6;border-radius:8px;font-size:14px;font-family:inherit">
+          <option value="KREAM">KREAM</option>
+          <option value="스마트스토어">네이버 스마트스토어</option>
+        </select>
+      </div>
+      <div>
+        <label>매출액 (원)</label>
+        <input type="number" id="onlineAmount" placeholder="0">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label>메모 (선택)</label>
+      <input type="text" id="onlineMemo" placeholder="예: 3월 정산, 수수료 제외 등">
+    </div>
+    <button class="btn-primary" onclick="addOnlineSale()">+ 온라인 매출 등록</button>
+  </div>
+
+  <!-- 온라인 매출 내역 -->
+  <div id="onlineList" style="margin-top:8px"></div>
+
+  <!-- 월별 합산 요약 -->
+  <div class="form-card" style="margin-top:12px">
+    <h3>📊 월별 합산 현황</h3>
+    <div id="onlineSummary"></div>
+  </div>
+</div>
+
 <!-- 내역 -->
 <div id="tab-history" class="content" style="display:none">
   <div class="filter-row">
@@ -333,22 +374,45 @@
     <span style="align-self:center;color:#adb5bd;font-size:13px">~</span>
     <input type="date" id="filterTo" onchange="renderHistory()">
     <button class="btn-secondary" onclick="clearFilter()">전체</button>
+    <button class="btn-secondary" onclick="exportExcel()" style="background:#2f9e44;color:#fff;border-color:#2f9e44">⬇ 엑셀</button>
   </div>
   <div id="historyList"></div>
 </div>
 
 <!-- 추이 -->
 <div id="tab-chart" class="content" style="display:none">
+  <!-- 채널 필터 -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:700;color:#495057;align-self:center">채널 표시:</span>
+    <button class="pay-btn active" id="filterShop" onclick="toggleChartFilter('shop')">🏪 매장</button>
+    <button class="pay-btn active" id="filterKream" onclick="toggleChartFilter('kream')">🟠 KREAM</button>
+    <button class="pay-btn active" id="filterNaver" onclick="toggleChartFilter('naver')">🟢 스마트스토어</button>
+  </div>
+
   <div class="chart-card">
-    <h3>일별 매출 (최근 14일)</h3>
+    <h3>일별 매출 (최근 14일) — 매장</h3>
     <canvas id="dailyChart"></canvas>
   </div>
   <div class="chart-card">
     <h3>월별 매출 (최근 6개월)</h3>
+    <div style="display:flex;gap:8px;margin-bottom:10px;font-size:12px">
+      <span style="color:#4361ee">■ 매장</span>
+      <span style="color:#ff6b35">■ KREAM</span>
+      <span style="color:#2f9e44">■ 스마트스토어</span>
+    </div>
     <canvas id="monthlyChart"></canvas>
   </div>
   <div class="chart-card">
-    <h3>결제수단 비율</h3>
+    <h3>분기별 매출</h3>
+    <div style="display:flex;gap:8px;margin-bottom:10px;font-size:12px">
+      <span style="color:#4361ee">■ 매장</span>
+      <span style="color:#ff6b35">■ KREAM</span>
+      <span style="color:#2f9e44">■ 스마트스토어</span>
+    </div>
+    <canvas id="quarterChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>결제수단 비율 (매장)</h3>
     <canvas id="payChart" style="max-height:180px"></canvas>
   </div>
 </div>
@@ -437,13 +501,14 @@ function formatMoney(n) { return '₩' + n.toLocaleString(); }
 
 // ─── 탭 ───
 function showTab(name) {
-  ['input','bulk','history','chart','products'].forEach(t => {
+  ['input','bulk','online','history','chart','products'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['input','bulk','history','chart','products'][i] === name);
+    el.classList.toggle('active', ['input','bulk','online','history','chart','products'][i] === name);
   });
   if (name==='bulk') renderBulk();
+  if (name==='online') renderOnline();
   if (name==='history') renderHistory();
   if (name==='chart') renderCharts();
   if (name==='products') renderProducts();
@@ -674,26 +739,89 @@ function clearFilter() {
 }
 
 // ─── 차트 ───
+// 차트 필터 상태
+let chartFilters = { shop:true, kream:true, naver:true };
+
+function toggleChartFilter(type) {
+  chartFilters[type] = !chartFilters[type];
+  const btn = document.getElementById('filter'+type.charAt(0).toUpperCase()+type.slice(1));
+  if (btn) btn.classList.toggle('active', chartFilters[type]);
+  renderCharts();
+}
+
+function getOnlineSales() {
+  return JSON.parse(localStorage.getItem('online_sales_v1') || '[]');
+}
+
 function renderCharts() {
-  // 일별
+  const onlineSales = getOnlineSales();
+
+  // 일별 (매장만)
   const days = [];
   for (let i=13;i>=0;i--) {
     const d = new Date(); d.setDate(d.getDate()-i);
     days.push(d.toISOString().slice(0,10));
   }
-  const dailyTotals = days.map(d => sales.filter(s=>s.date===d).reduce((a,s)=>a+s.amount,0));
-  renderChart('dailyChart','bar',days.map(d=>d.slice(5)),dailyTotals,'일별 매출','#4361ee');
+  const dailyTotals = days.map(d => chartFilters.shop ? sales.filter(s=>s.date===d).reduce((a,s)=>a+s.amount,0) : 0);
+  renderChart('dailyChart','bar',days.map(d=>d.slice(5)),dailyTotals,'매장 일별','#4361ee');
 
-  // 월별
+  // 월별 (매장 + KREAM + 스마트스토어 스택)
   const months = [];
   for (let i=5;i>=0;i--) {
     const d = new Date(); d.setMonth(d.getMonth()-i);
     months.push(d.toISOString().slice(0,7));
   }
-  const monthlyTotals = months.map(m => sales.filter(s=>s.date.startsWith(m)).reduce((a,s)=>a+s.amount,0));
-  renderChart('monthlyChart','line',months,monthlyTotals,'월별 매출','#3bc9db');
+  const shopMonthly = months.map(m => chartFilters.shop ? sales.filter(s=>s.date.startsWith(m)).reduce((a,s)=>a+s.amount,0) : 0);
+  const kreamMonthly = months.map(m => chartFilters.kream ? onlineSales.filter(o=>o.month===m&&o.platform==='KREAM').reduce((a,o)=>a+o.amount,0) : 0);
+  const naverMonthly = months.map(m => chartFilters.naver ? onlineSales.filter(o=>o.month===m&&o.platform==='스마트스토어').reduce((a,o)=>a+o.amount,0) : 0);
 
-  // 결제 파이
+  if (charts['monthlyChart']) charts['monthlyChart'].destroy();
+  charts['monthlyChart'] = new Chart(document.getElementById('monthlyChart'), {
+    type:'bar',
+    data:{ labels:months, datasets:[
+      { label:'매장', data:shopMonthly, backgroundColor:'#4361ee', stack:'s' },
+      { label:'KREAM', data:kreamMonthly, backgroundColor:'#ff6b35', stack:'s' },
+      { label:'스마트스토어', data:naverMonthly, backgroundColor:'#2f9e44', stack:'s' }
+    ]},
+    options:{ responsive:true, plugins:{ legend:{position:'bottom'} },
+      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true, ticks:{callback:v=>'₩'+v.toLocaleString()}} } }
+  });
+
+  // 분기별
+  const now = new Date();
+  const quarters = [];
+  for (let i=3;i>=0;i--) {
+    const qi = Math.floor(now.getMonth()/3) - i;
+    const yr = now.getFullYear() + Math.floor(qi/4);
+    const qn = ((qi%4)+4)%4;
+    quarters.push({ label:`${yr} Q${qn+1}`, yr, qn });
+  }
+  const shopQ = quarters.map(({yr,qn}) => {
+    if (!chartFilters.shop) return 0;
+    return sales.filter(s=>{ const d=new Date(s.date+'T00:00:00'); return d.getFullYear()===yr&&Math.floor(d.getMonth()/3)===qn; }).reduce((a,s)=>a+s.amount,0);
+  });
+  const kreamQ = quarters.map(({yr,qn}) => {
+    if (!chartFilters.kream) return 0;
+    return onlineSales.filter(o=>{ if(o.platform!=='KREAM') return false; const [y,m]=o.month.split('-').map(Number); return y===yr&&Math.floor((m-1)/3)===qn; }).reduce((a,o)=>a+o.amount,0);
+  });
+  const naverQ = quarters.map(({yr,qn}) => {
+    if (!chartFilters.naver) return 0;
+    return onlineSales.filter(o=>{ if(o.platform!=='스마트스토어') return false; const [y,m]=o.month.split('-').map(Number); return y===yr&&Math.floor((m-1)/3)===qn; }).reduce((a,o)=>a+o.amount,0);
+  });
+
+  if (charts['quarterChart']) charts['quarterChart'].destroy();
+  charts['quarterChart'] = new Chart(document.getElementById('quarterChart'), {
+    type:'bar',
+    data:{ labels:quarters.map(q=>q.label), datasets:[
+      { label:'매장', data:shopQ, backgroundColor:'#4361ee88', borderColor:'#4361ee', borderWidth:2, stack:'q' },
+      { label:'KREAM', data:kreamQ, backgroundColor:'#ff6b3588', borderColor:'#ff6b35', borderWidth:2, stack:'q' },
+      { label:'스마트스토어', data:naverQ, backgroundColor:'#2f9e4488', borderColor:'#2f9e44', borderWidth:2, stack:'q' }
+    ]},
+    options:{ responsive:true, plugins:{ legend:{position:'bottom'} },
+      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true, ticks:{callback:v=>'₩'+v.toLocaleString()}} } }
+  });
+
+  // 결제 파이 (매장)
   const card = sales.reduce((a,s)=>s.pay==='카드'?a+s.amount:a,0);
   const cash = sales.reduce((a,s)=>s.pay==='현금'?a+s.amount:a,0);
   const transfer = sales.reduce((a,s)=>s.pay==='이체'?a+s.amount:a,0);
@@ -1033,15 +1161,15 @@ function commitBulk() {
 
 function renderBulkHistory() {
   const el=document.getElementById('bulkHistory');
-  const recent=sales.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,30);
+  const recent=sales.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,60);
   if(!recent.length){el.innerHTML='';return;}
   const byDate={};
   recent.forEach(s=>{
     if(!byDate[s.date])byDate[s.date]=[];
     byDate[s.date].push(s);
   });
-  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#495057;margin-bottom:8px">최근 등록 내역</div>'+
-    Object.keys(byDate).sort().reverse().slice(0,7).map(d=>{
+  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#495057;margin-bottom:8px">최근 등록 내역 <span style="font-size:11px;font-weight:400;color:#adb5bd">(수정·삭제 가능)</span></div>'+
+    Object.keys(byDate).sort().reverse().slice(0,14).map(d=>{
       const ds=byDate[d];
       const total=ds.reduce((a,s)=>a+s.amount,0);
       return `<div class="history-item">
@@ -1050,13 +1178,212 @@ function renderBulkHistory() {
           <span class="history-total">${formatMoney(total)} <span style="font-size:11px;color:#adb5bd">${ds.length}건</span></span>
         </div>
         <div class="history-body">
-          ${ds.map(s=>`<div class="history-row">
-            <span class="history-item-name">${s.name} ×${s.qty}</span>
-            <span class="history-item-price">${formatMoney(s.amount)}</span>
+          ${ds.map(s=>`<div class="history-row" style="align-items:center">
+            <div style="flex:1">
+              <span class="history-item-name" id="name_${s.id}">${s.name} ×${s.qty}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="history-item-price">${formatMoney(s.amount)}</span>
+              <span class="sale-pay pay-${s.pay==='카드'?'card':s.pay==='현금'?'cash':'transfer'}" style="font-size:11px">${s.pay}</span>
+              <button onclick="editSale('${s.id}')" style="background:#f1f3ff;border:1px solid #4361ee;color:#4361ee;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit">수정</button>
+              <button onclick="deleteSaleFromBulk('${s.id}')" style="background:#fff5f5;border:1px solid #fa5252;color:#fa5252;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit">삭제</button>
+            </div>
           </div>`).join('')}
         </div>
       </div>`;
     }).join('');
+}
+
+function deleteSaleFromBulk(id) {
+  if (!confirm('이 항목을 삭제할까요?')) return;
+  sales = sales.filter(s=>s.id!==id);
+  localStorage.setItem('sales_v2', JSON.stringify(sales));
+  renderBulkHistory();
+  updateStats();
+}
+
+function editSale(id) {
+  const s = sales.find(s=>s.id===id);
+  if (!s) return;
+  // 인라인 수정 폼 표시
+  const nameEl = document.getElementById('name_'+id);
+  const row = nameEl?.closest('.history-row');
+  if (!row) return;
+  row.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 60px 90px 80px auto;gap:6px;align-items:center;width:100%">
+      <input id="edit_name_${id}" value="${s.name}" style="padding:5px 8px;border:1px solid #4361ee;border-radius:6px;font-size:13px;font-family:inherit">
+      <input id="edit_qty_${id}" type="number" value="${s.qty}" min="1" style="padding:5px 6px;border:1px solid #dee2e6;border-radius:6px;font-size:13px;text-align:center;font-family:inherit">
+      <input id="edit_amt_${id}" type="number" value="${s.amount}" style="padding:5px 8px;border:1px solid #dee2e6;border-radius:6px;font-size:13px;font-family:inherit">
+      <select id="edit_pay_${id}" style="padding:5px 4px;border:1px solid #dee2e6;border-radius:6px;font-size:13px;font-family:inherit">
+        <option ${s.pay==='카드'?'selected':''}>카드</option>
+        <option ${s.pay==='현금'?'selected':''}>현금</option>
+        <option ${s.pay==='이체'?'selected':''}>이체</option>
+      </select>
+      <div style="display:flex;gap:4px">
+        <button onclick="saveEdit('${id}')" style="background:#4361ee;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit">저장</button>
+        <button onclick="renderBulkHistory()" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;font-family:inherit">취소</button>
+      </div>
+    </div>`;
+}
+
+function saveEdit(id) {
+  const s = sales.find(s=>s.id===id);
+  if (!s) return;
+  s.name = document.getElementById('edit_name_'+id).value.trim() || s.name;
+  s.qty = parseInt(document.getElementById('edit_qty_'+id).value)||s.qty;
+  s.amount = parseInt(document.getElementById('edit_amt_'+id).value)||s.amount;
+  s.pay = document.getElementById('edit_pay_'+id).value;
+  localStorage.setItem('sales_v2', JSON.stringify(sales));
+  renderBulkHistory();
+  updateStats();
+}
+
+// ═══════════════════════════════
+// 온라인 매출 (KREAM / 스마트스토어)
+// ═══════════════════════════════
+function getOnlineSalesData() {
+  return JSON.parse(localStorage.getItem('online_sales_v1') || '[]');
+}
+function saveOnlineSales(data) {
+  localStorage.setItem('online_sales_v1', JSON.stringify(data));
+}
+
+function addOnlineSale() {
+  const month = document.getElementById('onlineMonth').value;
+  const platform = document.getElementById('onlinePlatform').value;
+  const amount = parseInt(document.getElementById('onlineAmount').value)||0;
+  const memo = document.getElementById('onlineMemo').value.trim();
+  if (!month) { alert('연월을 선택하세요'); return; }
+  if (!amount) { alert('매출액을 입력하세요'); return; }
+  const data = getOnlineSalesData();
+  // 같은 월+플랫폼이면 덮어쓰기 여부 확인
+  const existing = data.findIndex(o=>o.month===month&&o.platform===platform);
+  if (existing>=0) {
+    if (!confirm(`${month} ${platform} 매출이 이미 있습니다 (${formatMoney(data[existing].amount)}). 덮어쓸까요?`)) return;
+    data[existing] = { id: data[existing].id, month, platform, amount, memo, updatedAt: new Date().toISOString() };
+  } else {
+    data.push({ id: Date.now().toString(), month, platform, amount, memo, createdAt: new Date().toISOString() });
+  }
+  saveOnlineSales(data);
+  document.getElementById('onlineAmount').value='';
+  document.getElementById('onlineMemo').value='';
+  renderOnline();
+}
+
+function deleteOnlineSale(id) {
+  if (!confirm('삭제할까요?')) return;
+  const data = getOnlineSalesData().filter(o=>o.id!==id);
+  saveOnlineSales(data);
+  renderOnline();
+}
+
+function renderOnline() {
+  const data = getOnlineSalesData();
+  const el = document.getElementById('onlineList');
+  if (!el) return;
+
+  // 연월 기본값
+  const now = new Date().toISOString().slice(0,7);
+  if (!document.getElementById('onlineMonth').value)
+    document.getElementById('onlineMonth').value = now;
+
+  if (!data.length) { el.innerHTML='<div class="empty">등록된 온라인 매출이 없습니다</div>'; renderOnlineSummary(data); return; }
+
+  // 월별 그룹
+  const byMonth = {};
+  data.forEach(o=>{ if(!byMonth[o.month]) byMonth[o.month]=[]; byMonth[o.month].push(o); });
+  el.innerHTML = Object.keys(byMonth).sort().reverse().map(m=>{
+    const items = byMonth[m];
+    const total = items.reduce((a,o)=>a+o.amount,0);
+    // 매장 매출과 합산
+    const shopTotal = sales.filter(s=>s.date.startsWith(m)).reduce((a,s)=>a+s.amount,0);
+    return `<div class="form-card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:700;font-size:15px">${m}</span>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:#868e96">온라인 ${formatMoney(total)} + 매장 ${formatMoney(shopTotal)}</div>
+          <div style="font-size:18px;font-weight:800;color:#4361ee">합계 ${formatMoney(total+shopTotal)}</div>
+        </div>
+      </div>
+      ${items.map(o=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f1f3f5">
+          <span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${o.platform==='KREAM'?'#fff0e6':'#e6f4ea'};color:${o.platform==='KREAM'?'#ff6b35':'#2f9e44'}">${o.platform}</span>
+          <span style="flex:1;font-size:14px;font-weight:600">${formatMoney(o.amount)}</span>
+          ${o.memo?`<span style="font-size:12px;color:#adb5bd">${o.memo}</span>`:''}
+          <button onclick="deleteOnlineSale('${o.id}')" style="background:none;border:1px solid #dee2e6;color:#adb5bd;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;font-family:inherit">삭제</button>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+  renderOnlineSummary(data);
+}
+
+function renderOnlineSummary(data) {
+  const el = document.getElementById('onlineSummary');
+  if (!el) return;
+  const months = [...new Set([...data.map(o=>o.month), ...sales.map(s=>s.date.slice(0,7))])].sort().reverse().slice(0,6);
+  if (!months.length) { el.innerHTML='<div style="color:#adb5bd;font-size:13px;text-align:center;padding:16px">데이터 없음</div>'; return; }
+  el.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="border-bottom:2px solid #e9ecef">
+      <th style="text-align:left;padding:8px 6px;color:#868e96">월</th>
+      <th style="text-align:right;padding:8px 6px;color:#4361ee">🏪 매장</th>
+      <th style="text-align:right;padding:8px 6px;color:#ff6b35">🟠 KREAM</th>
+      <th style="text-align:right;padding:8px 6px;color:#2f9e44">🟢 스마트스토어</th>
+      <th style="text-align:right;padding:8px 6px;color:#1a1a2e;font-weight:700">합계</th>
+    </tr></thead>
+    <tbody>${months.map(m=>{
+      const shop = sales.filter(s=>s.date.startsWith(m)).reduce((a,s)=>a+s.amount,0);
+      const kream = data.filter(o=>o.month===m&&o.platform==='KREAM').reduce((a,o)=>a+o.amount,0);
+      const naver = data.filter(o=>o.month===m&&o.platform==='스마트스토어').reduce((a,o)=>a+o.amount,0);
+      return `<tr style="border-bottom:1px solid #f1f3f5">
+        <td style="padding:8px 6px;font-weight:600">${m}</td>
+        <td style="text-align:right;padding:8px 6px">${shop?formatMoney(shop):'-'}</td>
+        <td style="text-align:right;padding:8px 6px;color:#ff6b35">${kream?formatMoney(kream):'-'}</td>
+        <td style="text-align:right;padding:8px 6px;color:#2f9e44">${naver?formatMoney(naver):'-'}</td>
+        <td style="text-align:right;padding:8px 6px;font-weight:800;color:#4361ee">${formatMoney(shop+kream+naver)}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ═══════════════════════════════
+// 엑셀 다운로드 (CSV → 엑셀 호환)
+// ═══════════════════════════════
+function exportExcel() {
+  const from = document.getElementById('filterFrom').value;
+  const to = document.getElementById('filterTo').value;
+  let filtered = [...sales];
+  if (from) filtered = filtered.filter(s=>s.date>=from);
+  if (to) filtered = filtered.filter(s=>s.date<=to);
+  filtered.sort((a,b)=>a.date.localeCompare(b.date));
+
+  // 온라인 매출도 포함
+  const online = getOnlineSalesData();
+  const onlineFiltered = online.filter(o=>{
+    if (from && o.month < from.slice(0,7)) return false;
+    if (to && o.month > to.slice(0,7)) return false;
+    return true;
+  });
+
+  // BOM + CSV
+  let csv = '\uFEFF날짜,품목명,수량,단가,판매금액,결제수단,할인율,채널\n';
+  filtered.forEach(s=>{
+    csv += `${s.date},"${s.name}",${s.qty},${s.unitPrice||''},${s.amount},${s.pay},${s.disc||0}%,매장\n`;
+  });
+  if (onlineFiltered.length) {
+    csv += '\n연월,플랫폼,매출액,메모,채널\n';
+    onlineFiltered.forEach(o=>{
+      csv += `${o.month},"${o.platform}",${o.amount},"${o.memo||''}",온라인\n`;
+    });
+  }
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const label = from||to ? `${from||'전체'}~${to||''}` : '전체';
+  a.download = `마코마코_매출_${label}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 init();
